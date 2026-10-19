@@ -3,10 +3,10 @@ import pandas as pd
 import sqlite3
 from datetime import datetime
 
-# ضبط إعدادات الصفحة
-st.set_page_config(page_title="تطبيق الورشة - متابعة الباكوات", page_icon="🧵", layout="wide")
+# Configuration de la page
+st.set_page_config(page_title="Gestion d'Atelier de Couture", page_icon="🧵", layout="wide")
 
-# CSS لإضافة إطار (Contour) أنيق لمستطيل الإدخال
+# CSS pour créer le cadre/contour élégant
 st.markdown("""
     <style>
     .main { background-color: #f8f9fa; }
@@ -28,75 +28,176 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# الاتصال بقاعدة البيانات SQLite
+# Connexion à la base de données SQLite
 conn = sqlite3.connect('atelier_production.db', check_same_thread=False)
 c = conn.cursor()
 
-# إنشاء الجدول
+# Tables de la base de données
+c.execute('''
+    CREATE TABLE IF NOT EXISTS ouvrieres (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        nom TEXT UNIQUE
+    )
+''')
+
+c.execute('''
+    CREATE TABLE IF NOT EXISTS modeles (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        nom TEXT UNIQUE
+    )
+''')
+
+c.execute('''
+    CREATE TABLE IF NOT EXISTS postes (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        nom TEXT UNIQUE
+    )
+''')
+
 c.execute('''
     CREATE TABLE IF NOT EXISTS production (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         date TEXT,
         ouvriere TEXT,
         modele TEXT,
+        poste TEXT,
         couleur_ticket TEXT,
         paquet_num INTEGER,
-        quantite INTEGER
+        quantite INTEGER,
+        manque INTEGER DEFAULT 0,
+        remarque TEXT
     )
 ''')
 conn.commit()
 
-st.title("🧵 نظام ورشة الخياطة - الإدخال الجماعي السريع")
+# Titre Principal
+st.title("🧵 Système de Gestion d'Atelier de Couture")
 
-menu = st.sidebar.radio("القائمة الرئيسية", ["تسجيل الباكوات (إدخال سريع)", "جدول إنتاج الورشة", "إحصائيات وحسابات العاملات"])
+# Menu de Navigation
+menu = st.sidebar.radio("Navigation", [
+    "Saisie des Paquets (Saisie Rapide)", 
+    "Gestion Paramètres (Ouvrière/Modèle/Poste)", 
+    "Tableau de Production", 
+    "Statistiques & Calculs"
+])
 
-if menu == "تسجيل الباكوات (إدخال سريع)":
+# ---------------------------------------------------------
+# 1. GESTION DES PARAMÈTRES (Ajouter Ouvrière, Modèle, Poste)
+# ---------------------------------------------------------
+if menu == "Gestion Paramètres (Ouvrière/Modèle/Poste)":
+    st.subheader("⚙️ Configuration : Ajouter / Gérer les paramètres")
     
+    col1, col2, col3 = st.columns(3)
+    
+    with col1:
+        st.markdown("### 👩‍خ Ouvrières")
+        nouv_ouvriere = st.text_input("Nouvelle Ouvrière")
+        if st.button("➕ Ajouter Ouvrière"):
+            if nouv_ouvriere:
+                try:
+                    c.execute("INSERT INTO ouvrieres (nom) VALUES (?)", (nouv_ouvriere.strip(),))
+                    conn.commit()
+                    st.success(f"Ouvrière '{nouv_ouvriere}' ajoutée avec succès!")
+                except:
+                    st.warning("Cette ouvrière existe déjà.")
+            else:
+                st.error("Veuillez saisir un nom.")
+        
+        df_ouv = pd.read_sql_query("SELECT nom FROM ouvrieres", conn)
+        st.dataframe(df_ouv, use_container_width=True)
+
+    with col2:
+        st.markdown("### 👗 Modèles")
+        nouv_modele = st.text_input("Nouveau Modèle")
+        if st.button("➕ Ajouter Modèle"):
+            if nouv_modele:
+                try:
+                    c.execute("INSERT INTO modeles (nom) VALUES (?)", (nouv_modele.strip(),))
+                    conn.commit()
+                    st.success(f"Modèle '{nouv_modele}' ajouté avec succès!")
+                except:
+                    st.warning("Ce modèle existe déjà.")
+            else:
+                st.error("Veuillez saisir un nom.")
+        
+        df_mod = pd.read_sql_query("SELECT nom FROM modeles", conn)
+        st.dataframe(df_mod, use_container_width=True)
+
+    with col3:
+        st.markdown("### 📍 Postes de travail")
+        nouv_poste = st.text_input("Nouveau Poste")
+        if st.button("➕ Ajouter Poste"):
+            if nouv_poste:
+                try:
+                    c.execute("INSERT INTO postes (nom) VALUES (?)", (nouv_poste.strip(),))
+                    conn.commit()
+                    st.success(f"Poste '{nouv_poste}' ajouté avec succès!")
+                except:
+                    st.warning("Ce poste existe déjà.")
+            else:
+                st.error("Veuillez saisir un nom.")
+        
+        df_pst = pd.read_sql_query("SELECT nom FROM postes", conn)
+        st.dataframe(df_pst, use_container_width=True)
+
+# ---------------------------------------------------------
+# 2. SAISIE DES PAQUETS (SAISIE RAPIDE AVEC CONTOUR)
+# ---------------------------------------------------------
+elif menu == "Saisie des Paquets (Saisie Rapide)":
+    
+    # Récupération des données enregistrées
+    ouvrieres_list = [row[0] for row in c.execute("SELECT nom FROM ouvrieres").fetchall()]
+    modeles_list = [row[0] for row in c.execute("SELECT nom FROM modeles").fetchall()]
+    postes_list = [row[0] for row in c.execute("SELECT nom FROM postes").fetchall()]
+
     st.markdown('<div class="custom-card">', unsafe_allow_html=True)
-    st.subheader("📦 مستطيل إدخال الباكوات الجماعي")
-    st.write("أدخل بيانات الموديل وجميع أرقام الباكوات دفعة واحدة بدون تكرار.")
+    st.subheader("📦 Formulaire d'entrée groupee des paquets")
+    st.write("Saisissez toutes les informations ainsi que les paquets en une seule fois.")
     
     col1, col2 = st.columns(2)
     
     with col1:
-        st.markdown("#### 👤 بيانات العمل")
-        ouvriere = st.text_input("اسم الطفلة / العاملة", placeholder="مثال: مريم، سارة...")
-        modele = st.text_input("اسم الموديل", value="رُبّة", placeholder="مثال: رُبّة، قميص...")
-        couleur_ticket = st.selectbox("لون التيكي (Ticket)", ["بيضاء", "حمراء", "صفراء", "زرقاء", "خضراء", "وردية", "أخرى"])
+        st.markdown("#### 👤 Informations du travail")
+        ouvriere = st.selectbox("Sélectionner l'ouvrière", ouvrieres_list if ouvrieres_list else ["Aucune ouvrière"])
+        modele = st.selectbox("Sélectionner le modèle", modeles_list if modeles_list else ["Robe"])
+        poste = st.selectbox("Sélectionner le poste", postes_list if postes_list else ["Standard"])
+        couleur_ticket = st.selectbox("Couleur de Ticket", ["Blanche", "Rouge", "Jaune", "Bleue", "Verte", "Rose", "Autre"])
 
     with col2:
-        st.markdown("#### 🔢 أرقام الباكوات المنجزة")
-        method = st.radio("طريقة الإدخال:", [
-            "كتابة أرقام الباكوات مباشرة (مفصولة بفواصل: 1, 2, 3, 5, 8)",
-            "من باكو إلى باكو (نطاق متسلسل)"
+        st.markdown("#### 🔢 Paquets & Quantités & Manques")
+        method = st.radio("Méthode de saisie des numéros de paquets:", [
+            "Liste personnalisée (séparés par des virgules : 1, 2, 3, 5, 8)",
+            "Intervalle (De paquet X à paquet Y)"
         ])
         
-        if method == "كتابة أرقام الباكوات مباشرة (مفصولة بفواصل: 1, 2, 3, 5, 8)":
-            custom_paquets = st.text_input("اكتب أرقام الباكوات هنا مفصولة بفواصل:", value="1, 2, 3, 5, 8")
+        if "Liste" in method:
+            custom_paquets = st.text_input("Saisissez les paquets (ex: 1, 2, 3, 5, 8):", value="1, 2, 3, 5, 8")
         else:
             col_a, col_b = st.columns(2)
             with col_a:
-                start_p = st.number_input("من باكو رقم:", min_value=1, value=1, step=1)
+                start_p = st.number_input("Du paquet N°:", min_value=1, value=1, step=1)
             with col_b:
-                end_p = st.number_input("إلى باكو رقم:", min_value=1, value=5, step=1)
+                end_p = st.number_input("Au paquet N°:", min_value=1, value=5, step=1)
 
-        quantite_par_paquet = st.number_input("عدد القطع في كل باكو:", min_value=1, value=12, step=1)
+        quantite_par_paquet = st.number_input("Nombre de pièces par paquet:", min_value=1, value=12, step=1)
+        manque = st.number_input("Nombre de manques / pièces défectueuses (Manque):", min_value=0, value=0, step=1)
+        remarque = st.text_input("Remarques (Optionnel):", value="")
 
     st.markdown('</div>', unsafe_allow_html=True)
     
-    if st.button("💾 حفظ جميع الباكوات دفعة واحدة", type="primary", use_container_width=True):
-        if not ouvriere or not modele:
-            st.error("⚠️ يرجى إدخال اسم العاملة واسم الموديل أولاً!")
+    if st.button("💾 Enregistrer tous les paquets", type="primary", use_container_width=True):
+        if not ouvrieres_list or not modeles_list:
+            st.error("⚠️ Veuillez d'abord ajouter au moins une ouvrière et un modèle dans le menu 'Gestion Paramètres' !")
         else:
             paquets_list = []
-            if method == "كتابة أرقام الباكوات مباشرة (مفصولة بفواصل: 1, 2, 3, 5, 8)":
+            if "Liste" in method:
                 try:
                     paquets_list = [int(x.strip()) for x in custom_paquets.split(",") if x.strip().isdigit()]
                 except Exception:
-                    st.error("⚠️ يرجى كتابة الأرقام مفصولة بفواصل بشكل صحيح (مثال: 1, 2, 3, 5, 8)")
+                    st.error("⚠️ Format de liste incorrect. Exemple: 1, 2, 3, 5, 8")
             else:
                 if start_p > end_p:
-                    st.error("⚠️ يجب أن يكون رقم بداية الباكو أصغر من أو يساوي رقم النهاية!")
+                    st.error("⚠️ Le paquet de départ doit être inférieur ou égal au paquet de fin!")
                 else:
                     paquets_list = list(range(int(start_p), int(end_p) + 1))
 
@@ -105,61 +206,83 @@ if menu == "تسجيل الباكوات (إدخال سريع)":
                 
                 for p_num in paquets_list:
                     c.execute('''
-                        INSERT INTO production (date, ouvriere, modele, couleur_ticket, paquet_num, quantite)
-                        VALUES (?, ?, ?, ?, ?, ?)
-                    ''', (today_str, ouvriere, modele, couleur_ticket, p_num, quantite_par_paquet))
+                        INSERT INTO production (date, ouvriere, modele, poste, couleur_ticket, paquet_num, quantite, manque, remarque)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    ''', (today_str, ouvriere, modele, poste, couleur_ticket, p_num, quantite_par_paquet, manque, remarque))
                 
                 conn.commit()
                 total_pcs = len(paquets_list) * quantite_par_paquet
-                st.success(f"✅ تم بنجاح تسجيل {len(paquets_list)} باكوات (الأرقام: {paquets_list}) للطفلة [{ouvriere}] - موديل [{modele}] بتيكي [{couleur_ticket}]! المجموع: {total_pcs} قطعة.")
+                st.success(f"✅ Enregistrement réussi de {len(paquets_list)} paquets ({paquets_list}) pour l'ouvrière [{ouvriere}] - Modèle [{modele}] - Poste [{poste}]. Total: {total_pcs} pièces (Manque: {manque}).")
 
-elif menu == "جدول إنتاج الورشة":
-    st.subheader("📋 جميع الباكوات المسجلة في الورشة")
+# ---------------------------------------------------------
+# 3. TABLEAU DE PRODUCTION
+# ---------------------------------------------------------
+elif menu == "Tableau de Production":
+    st.subheader("📋 Historique de la Production")
+    
     df = pd.read_sql_query("""
         SELECT 
-            id AS 'الرقم', 
-            date AS 'التاريخ', 
-            ouvriere AS 'العاملة', 
-            modele AS 'الموديل', 
-            couleur_ticket AS 'لون التيكي', 
-            paquet_num AS 'رقم الباكو', 
-            quantite AS 'عدد القطع'
+            id AS 'ID', 
+            date AS 'Date', 
+            ouvriere AS 'Ouvrière', 
+            modele AS 'Modèle', 
+            poste AS 'Poste', 
+            couleur_ticket AS 'Ticket', 
+            paquet_num AS 'N° Paquet', 
+            quantite AS 'Quantité',
+            manque AS 'Manque',
+            remarque AS 'Remarque'
         FROM production ORDER BY id DESC
     """, conn)
     
     if not df.empty:
-        workers = ["الكل"] + list(df['العاملة'].unique())
-        selected_worker = st.selectbox("تصفية حسب العاملة:", workers)
-        
-        if selected_worker != "الكل":
-            st.dataframe(df[df['العاملة'] == selected_worker], use_container_width=True)
-        else:
-            st.dataframe(df, use_container_width=True)
+        col_f1, col_f2 = st.columns(2)
+        with col_f1:
+            workers = ["Toutes"] + list(df['Ouvrière'].unique())
+            selected_worker = st.selectbox("Filtrer par Ouvrière:", workers)
+        with col_f2:
+            models = ["Tous"] + list(df['Modèle'].unique())
+            selected_model = st.selectbox("Filtrer par Modèle:", models)
+            
+        df_filtered = df.copy()
+        if selected_worker != "Toutes":
+            df_filtered = df_filtered[df_filtered['Ouvrière'] == selected_worker]
+        if selected_model != "Tous":
+            df_filtered = df_filtered[df_filtered['Modèle'] == selected_model]
+            
+        st.dataframe(df_filtered, use_container_width=True)
     else:
-        st.info("لا توجد باكوات مسجلة حتى الآن.")
+        st.info("Aucun paquet enregistré pour le moment.")
 
+# ---------------------------------------------------------
+# 4. STATISTIQUES ET CALCULS
+# ---------------------------------------------------------
 else:
-    st.subheader("📊 إحصائيات إنتاج العاملات")
-    df = pd.read_sql_query("SELECT ouvriere, quantite, paquet_num FROM production", conn)
+    st.subheader("📊 Statistiques et Calculs de Production")
+    df = pd.read_sql_query("SELECT ouvriere, quantite, manque, paquet_num FROM production", conn)
     
     if not df.empty:
         total_paquets = len(df)
         total_pieces = df['quantite'].sum()
+        total_manques = df['manque'].sum()
         
-        col_m1, col_m2 = st.columns(2)
-        col_m1.metric("إجمالي الباكوات المنجزة", total_paquets)
-        col_m2.metric("إجمالي القطع المنجزة", total_pieces)
+        c1, c2, c3 = st.columns(3)
+        c1.metric("Total Paquets Réalisés", total_paquets)
+        c2.metric("Total Pièces Produites", total_pieces)
+        c3.metric("Total Manques / Déchets", total_manques)
         
         st.markdown("---")
-        st.markdown("### مجموع القطع والباكوات لكل عاملة / طفلة:")
+        st.markdown("### Récapitulatif par Ouvrière :")
         
         summary = df.groupby("ouvriere").agg(
-            عدد_الباكوات=('paquet_num', 'count'),
-            مجموع_القطع=('quantite', 'sum')
+            Nombre_Paquets=('paquet_num', 'count'),
+            Total_Pieces=('quantite', 'sum'),
+            Total_Manque=('manque', 'sum')
         ).reset_index()
         
-        summary.columns = ["العاملة", "عدد الباكوات", "مجموع القطع"]
+        summary.columns = ["Ouvrière", "Nombre de Paquets", "Total Pièces", "Total Manque"]
         st.table(summary)
-        st.bar_chart(summary.set_index("العاملة")["مجموع القطع"])
+        
+        st.bar_chart(summary.set_index("Ouvrière")["Total Pièces"])
     else:
-        st.info("لا توجد بيانات مسجلة لعرض الإحصائيات.")
+        st.info("Aucune donnée disponible pour le moment.")
