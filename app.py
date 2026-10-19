@@ -325,27 +325,7 @@ if ouvrieres_db:
         conn.close()
         st.sidebar.success("Ouvrière supprimée.")
         st.rerun()
-        # 2. SUPPRIMER POSTE
-st.sidebar.markdown("---")
-st.sidebar.subheader("🧵 Supprimer un poste")
-
-conn = get_connection()
-postes_db = conn.execute(
-    "SELECT nom FROM postes ORDER BY nom"
-).fetchall()
-conn.close()
-
-if postes_db:
-    poste_choisi = st.sidebar.selectbox(
-        "Choisir le poste",
-        [p[0] for p in postes_db],
-        key="del_poste",
-    )
-    if st.sidebar.button("🗑️ SUPPRIMER POSTE", key="btn_del_poste"):
-        conn = get_connection()
-        conn.execute("DELETE FROM postes WHERE nom=?", (poste_choisi,))
-        conn.commit()
-        conn.close()# 2. SUPPRIMER POSTE
+  # 2. SUPPRIMER POSTE
 st.sidebar.markdown("---")
 st.sidebar.subheader("🧵 Supprimer un poste")
 
