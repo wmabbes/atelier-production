@@ -713,16 +713,16 @@ with tab_manque:
             heure_m = st.selectbox(
                 "Tranche Horaire", tranches_horaires, key="manque_h"
             )
-           types_manques_avec_panne = list(manques_types)
+            types_manques_avec_panne = list(manques_types)
 
-if "Panne" not in types_manques_avec_panne:
-    types_manques_avec_panne.append("Panne")
+            if "Panne" not in types_manques_avec_panne:
+                types_manques_avec_panne.append("Panne")
 
-type_manque = st.selectbox(
-    "Type de Manque",
-    types_manques_avec_panne,
-    key="manque_type"
-)
+            type_manque = st.selectbox(
+                "Type de Manque",
+                types_manques_avec_panne,
+                key="manque_type"
+            )
 
             duree_panne = st.selectbox(
                 "Durée",
