@@ -432,7 +432,8 @@ with tab_prod:
                             formatted_date_str = selected_date.strftime(
                                 "%d/%m/%Y"
                             )
-conn = get_connection()
+
+                            conn = get_connection()
                             dup = conn.execute(
                                 """SELECT id FROM production
                                 WHERE date=? AND nom=? AND prenom=?
