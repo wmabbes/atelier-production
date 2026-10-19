@@ -351,7 +351,6 @@ else:
     st.sidebar.info("Aucun poste disponible.")
 
 # 3. SUPPRIMER MODÈLE
-st.sidebar.markdown("---")
 st.sidebar.subheader("📦 Supprimer un modèle")
 
 conn = get_connection()
@@ -366,19 +365,25 @@ if modeles_db:
         [m[0] for m in modeles_db],
         key="del_modele",
     )
+
     if st.sidebar.button("🗑️ SUPPRIMER MODÈLE", key="btn_del_modele"):
         conn = get_connection()
         conn.execute("DELETE FROM paquets WHERE modele=?", (modele_choisi,))
         conn.execute("DELETE FROM modeles WHERE nom=?", (modele_choisi,))
         conn.commit()
         conn.close()
-        st.sidebar.success("Modèle et paquets supprimés.")
+        st.sidebar.success("Modèle supprimé.")
         st.rerun()
 else:
+    st.sidebar.button(
+        "🗑️ SUPPRIMER MODÈLE",
+        key="btn_del_modele_vide",
+        disabled=True,
+    )
     st.sidebar.info("Aucun modèle disponible.")
 
+
 # 4. SUPPRIMER MANQUE / PANNE
-st.sidebar.markdown("---")
 st.sidebar.subheader("⚠️ Supprimer un manque / panne")
 
 conn = get_connection()
@@ -393,24 +398,33 @@ if manques_db:
         f"#{m[0]} | {m[1]} | {m[2]} {m[3]} | {m[4]} | {m[5]}"
         for m in manques_db
     ]
+
     manque_choisi = st.sidebar.selectbox(
         "Choisir le manque / panne",
         manque_options,
         key="del_manque",
     )
+
     if st.sidebar.button(
         "🗑️ SUPPRIMER MANQUE / PANNE",
         key="btn_del_manque",
     ):
         idx = manque_options.index(manque_choisi)
         manque_id = manques_db[idx][0]
+
         conn = get_connection()
         conn.execute("DELETE FROM manques WHERE id=?", (manque_id,))
         conn.commit()
         conn.close()
+
         st.sidebar.success("Manque / panne supprimé.")
         st.rerun()
 else:
+    st.sidebar.button(
+        "🗑️ SUPPRIMER MANQUE / PANNE",
+        key="btn_del_manque_vide",
+        disabled=True,
+    )
     st.sidebar.info("Aucun manque / panne enregistré.")
 # --- MAIN PAGE ---
 selected_date = st.date_input("📅 Date du jour", date.today(), format="DD/MM/YYYY")
