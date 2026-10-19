@@ -435,14 +435,18 @@ with tab_prod:
 
                             conn = get_connection()
                             columns = [
-    row[1]
-    for row in conn.execute("PRAGMA table_info(production)").fetchall()
-]
-
-st.write("Colonnes disponibles :", columns)
-                            dup = conn.execute(
-                                """SELECT id FROM production WHERE date=? AND nom=? AND prenom=? 
-                                            AND modele=? AND ticket=? AND paquet_num=? AND sous_categorie=?""",
+                               row[1]
+                               for row in conn.execute(
+                                   "PRAGMA table_info(production)"
+                               ).fetchall()
+                            ]
+                            
+                            st.write("Colonnes disponibles :", columns)
+                         dup = conn.execute(
+                                """SELECT id FROM production 
+                                WHERE date=? AND nom=? AND prenom=? 
+                                AND modele=? AND ticket=? AND paquet_num=? 
+                                AND sous_categorie=?""",
                                 (
                                     formatted_date_str,
                                     w_selected_obj["Nom"],
