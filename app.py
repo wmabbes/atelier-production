@@ -325,6 +325,113 @@ if ouvrieres_db:
         conn.close()
         st.sidebar.success("Ouvrière supprimée.")
         st.rerun()
+        # 2. SUPPRIMER POSTE
+st.sidebar.markdown("---")
+st.sidebar.subheader("🧵 Supprimer un poste")
+
+conn = get_connection()
+postes_db = conn.execute(
+    "SELECT nom FROM postes ORDER BY nom"
+).fetchall()
+conn.close()
+
+if postes_db:
+    poste_choisi = st.sidebar.selectbox(
+        "Choisir le poste",
+        [p[0] for p in postes_db],
+        key="del_poste",
+    )
+    if st.sidebar.button("🗑️ SUPPRIMER POSTE", key="btn_del_poste"):
+        conn = get_connection()
+        conn.execute("DELETE FROM postes WHERE nom=?", (poste_choisi,))
+        conn.commit()
+        conn.close()# 2. SUPPRIMER POSTE
+st.sidebar.markdown("---")
+st.sidebar.subheader("🧵 Supprimer un poste")
+
+conn = get_connection()
+postes_db = conn.execute(
+    "SELECT nom FROM postes ORDER BY nom"
+).fetchall()
+conn.close()
+
+if postes_db:
+    poste_choisi = st.sidebar.selectbox(
+        "Choisir le poste",
+        [p[0] for p in postes_db],
+        key="del_poste",
+    )
+    if st.sidebar.button("🗑️ SUPPRIMER POSTE", key="btn_del_poste"):
+        conn = get_connection()
+        conn.execute("DELETE FROM postes WHERE nom=?", (poste_choisi,))
+        conn.commit()
+        st.sidebar.success("Poste supprimé.")
+        st.rerun()
+else:
+    st.sidebar.info("Aucun poste disponible.")
+
+# 3. SUPPRIMER MODÈLE
+st.sidebar.markdown("---")
+st.sidebar.subheader("📦 Supprimer un modèle")
+
+conn = get_connection()
+modeles_db = conn.execute(
+    "SELECT nom FROM modeles ORDER BY nom"
+).fetchall()
+conn.close()
+
+if modeles_db:
+    modele_choisi = st.sidebar.selectbox(
+        "Choisir le modèle",
+        [m[0] for m in modeles_db],
+        key="del_modele",
+    )
+    if st.sidebar.button("🗑️ SUPPRIMER MODÈLE", key="btn_del_modele"):
+        conn = get_connection()
+        conn.execute("DELETE FROM paquets WHERE modele=?", (modele_choisi,))
+        conn.execute("DELETE FROM modeles WHERE nom=?", (modele_choisi,))
+        conn.commit()
+        conn.close()
+        st.sidebar.success("Modèle et paquets supprimés.")
+        st.rerun()
+else:
+    st.sidebar.info("Aucun modèle disponible.")
+
+# 4. SUPPRIMER MANQUE / PANNE
+st.sidebar.markdown("---")
+st.sidebar.subheader("⚠️ Supprimer un manque / panne")
+
+conn = get_connection()
+manques_db = conn.execute(
+    """SELECT id, date, nom, prenom, type_manque, duree
+       FROM manques ORDER BY id DESC"""
+).fetchall()
+conn.close()
+
+if manques_db:
+    manque_options = [
+        f"#{m[0]} | {m[1]} | {m[2]} {m[3]} | {m[4]} | {m[5]}"
+        for m in manques_db
+    ]
+    manque_choisi = st.sidebar.selectbox(
+        "Choisir le manque / panne",
+        manque_options,
+        key="del_manque",
+    )
+    if st.sidebar.button(
+        "🗑️ SUPPRIMER MANQUE / PANNE",
+        key="btn_del_manque",
+    ):
+        idx = manque_options.index(manque_choisi)
+        manque_id = manques_db[idx][0]
+        conn = get_connection()
+        conn.execute("DELETE FROM manques WHERE id=?", (manque_id,))
+        conn.commit()
+        conn.close()
+        st.sidebar.success("Manque / panne supprimé.")
+        st.rerun()
+else:
+    st.sidebar.info("Aucun manque / panne enregistré.")
 # --- MAIN PAGE ---
 selected_date = st.date_input("📅 Date du jour", date.today(), format="DD/MM/YYYY")
 st.markdown("---")
