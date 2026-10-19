@@ -291,19 +291,23 @@ if modeles_list:
                 st.rerun()
             conn.close()
 # --- SUPPRESSION DES ELEMENTS ---
-st.sidebar.markdown("---")
-st.sidebar.header("🗑️ Supprimer des éléments")
+st.sidebar.subheader("👷 Supprimer une ouvrière")
 
-with st.sidebar.expander("🗑️ Gestion des suppressions", expanded=False):
+conn = get_connection()
+ouvrieres_db = conn.execute(
+    "SELECT nom, prenom, categorie FROM workers ORDER BY nom"
+).fetchall()
+conn.close()
 
-    # 1. Supprimer une ouvrière
-    st.subheader("👷 Supprimer une ouvrière")
-
-    conn = get_connection()
-    ouvrieres_db = conn.execute(
-        "SELECT nom, prenom, categorie FROM workers ORDER BY nom"
-    ).fetchall()
-    conn.close()
+if ouvrieres_db:
+    ouvriere_options = [
+        f"{w[0]} {w[1]} - {w[2]}" for w in ouvrieres_db
+    ]
+    ouvriere_choisie = st.sidebar.selectbox(
+        "Choisir l'ouvrière",
+        ouvriere_options,
+        key="del_worker",
+    )
 # --- MAIN PAGE ---
 selected_date = st.date_input("📅 Date du jour", date.today(), format="DD/MM/YYYY")
 st.markdown("---")
