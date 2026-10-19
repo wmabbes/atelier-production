@@ -291,6 +291,10 @@ if modeles_list:
                 st.rerun()
             conn.close()
 # --- SUPPRESSION DES ELEMENTS ---
+st.sidebar.markdown("---")
+st.sidebar.header("🗑️ Supprimer des éléments")
+
+# 1. SUPPRIMER OUVRIÈRE
 st.sidebar.subheader("👷 Supprimer une ouvrière")
 
 conn = get_connection()
@@ -308,6 +312,19 @@ if ouvrieres_db:
         ouvriere_options,
         key="del_worker",
     )
+
+    if st.sidebar.button("🗑️ SUPPRIMER OUVRIÈRE", key="btn_del_worker"):
+        idx = ouvriere_options.index(ouvriere_choisie)
+        w = ouvrieres_db[idx]
+        conn = get_connection()
+        conn.execute(
+            "DELETE FROM workers WHERE nom=? AND prenom=?",
+            (w[0], w[1]),
+        )
+        conn.commit()
+        conn.close()
+        st.sidebar.success("Ouvrière supprimée.")
+        st.rerun()
 # --- MAIN PAGE ---
 selected_date = st.date_input("📅 Date du jour", date.today(), format="DD/MM/YYYY")
 st.markdown("---")
