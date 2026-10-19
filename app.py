@@ -290,7 +290,20 @@ if modeles_list:
                 st.sidebar.success(f"✅ Paquet ajouté !")
                 st.rerun()
             conn.close()
+# --- SUPPRESSION DES ELEMENTS ---
+st.sidebar.markdown("---")
+st.sidebar.header("🗑️ Supprimer des éléments")
 
+with st.sidebar.expander("🗑️ Gestion des suppressions", expanded=False):
+
+    # 1. Supprimer une ouvrière
+    st.subheader("👷 Supprimer une ouvrière")
+
+    conn = get_connection()
+    ouvrieres_db = conn.execute(
+        "SELECT nom, prenom, categorie FROM workers ORDER BY nom"
+    ).fetchall()
+    conn.close()
 # --- MAIN PAGE ---
 selected_date = st.date_input("📅 Date du jour", date.today(), format="DD/MM/YYYY")
 st.markdown("---")
