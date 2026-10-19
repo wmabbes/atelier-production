@@ -719,11 +719,12 @@ with tab_manque:
                 types_manques_avec_panne.append("Panne")
 
             type_manque = st.selectbox(
-                "Type de Manque",
-                types_manques_avec_panne,
-                key="manque_type"
-            )
-
+    "Type de Manque",
+    list(manques_types) + (
+        ["Panne"] if "Panne" not in manques_types else []
+    ),
+    key="manque_type"
+)
             duree_panne = st.selectbox(
                 "Durée",
                 [
