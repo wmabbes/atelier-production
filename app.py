@@ -350,6 +350,7 @@ if postes_db:
 else:
     st.sidebar.info("Aucun poste disponible.")
 
+
 # 3. SUPPRIMER MODÈLE
 st.sidebar.subheader("📦 Supprimer un modèle")
 
@@ -372,15 +373,10 @@ if modeles_db:
         conn.execute("DELETE FROM modeles WHERE nom=?", (modele_choisi,))
         conn.commit()
         conn.close()
-        st.sidebar.success("Modèle supprimé.")
+        st.success("Modèle supprimé.")
         st.rerun()
 else:
-    st.sidebar.button(
-        "🗑️ SUPPRIMER MODÈLE",
-        key="btn_del_modele_vide",
-        disabled=True,
-    )
-    st.sidebar.info("Aucun modèle disponible.")
+    st.info("Aucun modèle disponible. Ajoute d'abord un modèle.")
 
 
 # 4. SUPPRIMER MANQUE / PANNE
