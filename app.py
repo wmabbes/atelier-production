@@ -422,6 +422,89 @@ else:
         disabled=True,
     )
     st.sidebar.info("Aucun manque / panne enregistré.")
+    # --- AJOUTER UNE PANNE ---
+st.sidebar.markdown("---")
+st.sidebar.subheader("🔧 Ajouter une panne")
+
+conn = get_connection()
+ouvrieres = conn.execute(
+    "SELECT nom, prenom, categorie FROM workers ORDER BY nom"
+).fetchall()
+conn.close()
+
+if ouvrieres:
+    ouvriere_options = [
+        f"{w[0]} {w[1]} - {w[2]}" for w in ouvrieres
+    ]
+
+    ouvriere = st.sidebar.selectbox(
+        "Choisir l'ouvrière",
+        ouvriere_options,
+        key="ajout_panne_ouvriere",
+    )
+
+    date_panne = st.sidebar.date_input(
+        "Date de la panne",
+        key="date_panne",
+    )
+
+    heure_panne = st.sidebar.time_input(
+        "Heure de la panne",
+        key="heure_panne",
+    )
+
+    type_panne = st.sidebar.text_input(
+        "Type de panne",
+        placeholder="Exemple : machine en panne",
+        key="type_panne",
+    )
+
+    duree_panne = st.sidebar.number_input(
+        "Durée (minutes)",
+        min_value=0,
+        step=5,
+        key="duree_panne",
+    )
+
+    remarque_panne = st.sidebar.text_input(
+        "Remarque",
+        key="remarque_panne",
+    )
+
+    if st.sidebar.button("➕ AJOUTER PANNE", key="btn_ajouter_panne"):
+        if not type_panne.strip():
+            st.sidebar.warning("Saisis le type de panne.")
+        else:
+            idx = ouvriere_options.index(ouvriere)
+            w = ouvrieres[idx]
+
+            conn = get_connection()
+            conn.execute(
+                """INSERT INTO manques
+                (date, nom, prenom, categorie, heure,
+                 type_manque, duree, remarque)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+                (
+                    date_panne.isoformat(),
+                    w[0],
+                    w[1],
+                    w[2],
+                    heure_panne.strftime("%H:%M"),
+                    type_panne.strip(),
+                    duree_panne,
+                    remarque_panne.strip(),
+                ),
+            )
+            conn.commit()
+            conn.close()
+
+            st.sidebar.success("Panne ajoutée avec succès.")
+            st.rerun()
+else:
+    st.sidebar.warning(
+        "Ajoute d'abord une ouvrière dans la liste des ouvrières."
+    )
+
 # --- MAIN PAGE ---
 selected_date = st.date_input("📅 Date du jour", date.today(), format="DD/MM/YYYY")
 st.markdown("---")
