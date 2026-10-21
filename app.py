@@ -67,8 +67,6 @@ def init_db():
     c.execute(
         "CREATE TABLE IF NOT EXISTS paquets (id INTEGER PRIMARY KEY AUTOINCREMENT, modele TEXT, ticket TEXT, paquet_num INTEGER, quantite INTEGER)"
     )
-    
-    # إضافة قاعدة حماية ضد التكرار مباشرة في جدول الإنتاج (UNIQUE constraint)
     c.execute(
         """CREATE TABLE IF NOT EXISTS production (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -605,43 +603,42 @@ with tab_prod:
                             help="Entrez le numéro du paquet (ex: 5) ou plusieurs numéros séparés par des virgules (ex: 1, 2, 3)"
                         )
 
-                        # --- الفحص والتحقق الصارم من عدم التكرار لكل عمالة ---
+                        # --- الفحص والتدقيق المانع للتكرار باستخدام مجموعة (Set) ---
                         total_calculated_pieces = 0
                         parsed_paquets = []
                         duplicate_paquets = []
                         
                         try:
                             parts = paquet_input_str.split(",")
-                            conn = get_connection()
+                            raw_nums = set()
                             for p in parts:
                                 p = p.strip()
-                                temps_list = []
                                 if "-" in p:
                                     start, end = map(int, p.split("-"))
-                                    temps_list = list(range(start, end + 1))
+                                    for n in range(start, end + 1):
+                                        raw_nums.add(n)
                                 elif p.isdigit():
-                                    temps_list = [int(p)]
+                                    raw_nums.add(int(p))
 
-                                for p_num in temps_list:
-                                    # فحص شامل في قاعدة البيانات لمنع التكرار تماماً لهذه العاملة
-                                    exists = conn.execute(
-                                        """SELECT id FROM production 
-                                        WHERE nom=? AND prenom=? AND modele=? AND ticket=? AND paquet_num=?""",
-                                        (w_selected_obj["Nom"], w_selected_obj["Prénom"], sel_cmd, sel_ticket, p_num)
+                            conn = get_connection()
+                            for p_num in raw_nums:
+                                # التحقق المطلق في جدول الإنتاج لنفس العاملة والموديل والتيكت ورقم الباكو
+                                exists = conn.execute(
+                                    """SELECT id FROM production 
+                                    WHERE nom=? AND prenom=? AND modele=? AND ticket=? AND paquet_num=?""",
+                                    (w_selected_obj["Nom"], w_selected_obj["Prénom"], sel_cmd, sel_ticket, p_num)
+                                ).fetchone()
+
+                                if exists:
+                                    duplicate_paquets.append(p_num)
+                                else:
+                                    parsed_paquets.append(p_num)
+                                    res = conn.execute(
+                                        "SELECT quantite FROM paquets WHERE modele=? AND ticket=? AND paquet_num=?",
+                                        (sel_cmd, sel_ticket, p_num)
                                     ).fetchone()
-
-                                    if exists:
-                                        if p_num not in duplicate_paquets:
-                                            duplicate_paquets.append(p_num)
-                                    else:
-                                        if p_num not in parsed_paquets:
-                                            parsed_paquets.append(p_num)
-                                            res = conn.execute(
-                                                "SELECT quantite FROM paquets WHERE modele=? AND ticket=? AND paquet_num=?",
-                                                (sel_cmd, sel_ticket, p_num)
-                                            ).fetchone()
-                                            if res:
-                                                total_calculated_pieces += res[0]
+                                    if res:
+                                        total_calculated_pieces += res[0]
                             conn.close()
                         except Exception:
                             pass
@@ -703,7 +700,6 @@ with tab_prod:
                                         )
                                         saved_count += 1
                                     except sqlite3.IntegrityError:
-                                        # حماية إضافية من قاعدة البيانات نفسها تمنع أي تكرار
                                         pass
 
                             conn.commit()
