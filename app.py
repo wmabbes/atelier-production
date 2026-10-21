@@ -40,14 +40,6 @@ st.markdown(
         background-color: #122647;
         color: white;
     }
-    .metric-card {
-        background-color: white;
-        padding: 15px;
-        border-radius: 10px;
-        box-shadow: 0 4px 6px rgba(0,0,0,0.05);
-        text-align: center;
-        border-left: 5px solid #1b3b6f;
-    }
     </style>
 """,
     unsafe_allow_html=True,
@@ -617,11 +609,11 @@ with tab_prod:
                             key=f"prod_qty_paquet_{cat_key}"
                         )
 
-                    # --- حساب وحساب المردودية (Rendement & Pourcentage) فورياً ---
-                    # حساب إجمالي عدد القطع المدخلة في خانة الباكوات الحالية
+                    # --- حساب فوري لعدد القطع والمردودية بناءً على Nombre de pièces par paquet ---
                     temp_total_pcs = 0
                     try:
-                        for p in paquet_input_str.split(","):
+                        parts = paquet_input_str.split(",")
+                        for p in parts:
                             p = p.strip()
                             if "-" in p:
                                 start, end = map(int, p.split("-"))
@@ -637,7 +629,7 @@ with tab_prod:
                     st.markdown("---")
                     m_col1, m_col2, m_col3 = st.columns(3)
                     with m_col1:
-                        st.metric(label="📦 Total Pièces Saisies", value=f"{temp_total_pcs} pcs")
+                        st.metric(label="📦 Total Pièces Calculé", value=f"{temp_total_pcs} pcs")
                     with m_col2:
                         st.metric(label="🎯 Objectif Fixe (par heure)", value=f"{obj_val} pcs")
                     with m_col3:
@@ -698,7 +690,7 @@ with tab_prod:
                                             sel_cmd,
                                             sel_ticket,
                                             p_num,
-                                            qty_per_paquet,
+                                            qty_per_paquet,  # يتم اعتماد الكمية مباشرة من Nombre de pièces par paquet
                                             w_selected_obj["Objectif"],
                                         ),
                                     )
@@ -708,7 +700,7 @@ with tab_prod:
                             conn.close()
                             
                             if saved_count > 0:
-                                st.success(f"✅ Enregistré avec succès ({saved_count} paquet(s)) !")
+                                st.success(f"✅ Enregistré avec succès ({saved_count} paquet(s)) ! Total pièces: {saved_count * qty_per_paquet}")
                                 st.rerun()
                             else:
                                 st.error("❌ Erreur : Ces paquets ont déjà été enregistrés pour cette ouvrière !")
