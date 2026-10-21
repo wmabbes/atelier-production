@@ -11,10 +11,9 @@ st.set_page_config(
 st.markdown(
     """
     <style>
-    /* خلفية صفحة تسجيل الدخول مع صورة نسيج وخياطة بتدرجات الأزرق */
     .login-bg {
         background-image: linear-gradient(rgba(10, 25, 47, 0.75), rgba(15, 32, 67, 0.85)), 
-                          url('https://images.unsplash.com/photo-1584917865442-de89df76afd3?q=80&w=1600&auto=format&fit=crop');
+                    url('https://images.unsplash.com/photo-1584917865442-de89df76afd3?q=80&w=1600&auto=format&fit=crop');
         background-size: cover;
         background-position: center;
         padding: 40px;
@@ -24,8 +23,6 @@ st.markdown(
         box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
         margin-bottom: 20px;
     }
-    
-    /* تنسيق عام للتطبيق بدرجات الأزرق الملكي والداكن */
     .stApp {
         background-color: #f4f7f6;
     }
@@ -133,7 +130,6 @@ def get_connection():
     return sqlite3.connect(DB_NAME)
 
 
-# --- حماية بكلمة مرور مع تصميم خلفية نسيج مبسط وسهل ---
 def check_password():
     if "password_correct" not in st.session_state:
         st.session_state["password_correct"] = False
@@ -155,7 +151,7 @@ def check_password():
                 "🔑 Mot de passe :", type="password", key="pwd_input"
             )
             if st.button("🚀 Valider et Entrer"):
-                if pwd == "1234":  # كلمة المرور (يمكنك تغييرها هنا)
+                if pwd == "1234":
                     st.session_state["password_correct"] = True
                     st.rerun()
                 else:
@@ -167,7 +163,6 @@ def check_password():
 if not check_password():
     st.stop()
 
-# --- واجهة التطبيق الرئيسية بعد الدخول ---
 st.markdown(
     "<h1 style='color: #1b3b6f; margin-bottom: 0px;'>🧵 Suivi de Production - Atelier</h1>",
     unsafe_allow_html=True,
@@ -290,13 +285,11 @@ if modeles_list:
                 st.sidebar.success(f"✅ Paquet ajouté !")
                 st.rerun()
             conn.close()
-# --- SUPPRESSION DES ELEMENTS ---
+
 st.sidebar.markdown("---")
 st.sidebar.header("🗑️ Supprimer des éléments")
 
-# 1. SUPPRIMER OUVRIÈRE
 st.sidebar.subheader("👷 Supprimer une ouvrière")
-
 conn = get_connection()
 ouvrieres_db = conn.execute(
     "SELECT nom, prenom, categorie FROM workers ORDER BY nom"
@@ -325,10 +318,9 @@ if ouvrieres_db:
         conn.close()
         st.sidebar.success("Ouvrière supprimée.")
         st.rerun()
-  # 2. SUPPRIMER POSTE
+
 st.sidebar.markdown("---")
 st.sidebar.subheader("🧵 Supprimer un poste")
-
 conn = get_connection()
 postes_db = conn.execute(
     "SELECT nom FROM postes ORDER BY nom"
@@ -345,15 +337,13 @@ if postes_db:
         conn = get_connection()
         conn.execute("DELETE FROM postes WHERE nom=?", (poste_choisi,))
         conn.commit()
+        conn.close()
         st.sidebar.success("Poste supprimé.")
         st.rerun()
 else:
     st.sidebar.info("Aucun poste disponible.")
 
-
-# 3. SUPPRIMER MODÈLE
 st.sidebar.subheader("📦 Supprimer un modèle")
-
 conn = get_connection()
 modeles_db = conn.execute(
     "SELECT nom FROM modeles ORDER BY nom"
@@ -378,14 +368,11 @@ if modeles_db:
 else:
     st.info("Aucun modèle disponible. Ajoute d'abord un modèle.")
 
-
-# 4. SUPPRIMER MANQUE / PANNE
 st.sidebar.subheader("⚠️ Supprimer un manque / panne")
-
 conn = get_connection()
 manques_db = conn.execute(
     """SELECT id, date, nom, prenom, type_manque, duree
-       FROM manques ORDER BY id DESC"""
+        FROM manques ORDER BY id DESC"""
 ).fetchall()
 conn.close()
 
@@ -422,10 +409,9 @@ else:
         disabled=True,
     )
     st.sidebar.info("Aucun manque / panne enregistré.")
-    # --- AJOUTER UNE PANNE ---
+
 st.sidebar.markdown("---")
 st.sidebar.subheader("🔧 Ajouter une panne")
-
 conn = get_connection()
 ouvrieres = conn.execute(
     "SELECT nom, prenom, categorie FROM workers ORDER BY nom"
@@ -609,92 +595,92 @@ with tab_prod:
                             else None
                         )
 
-                        if sel_ticket:
-                            conn = get_connection()
-                            paquets_db = conn.execute(
-                                "SELECT paquet_num, quantite FROM paquets WHERE modele=? AND ticket=?",
-                                (sel_cmd, sel_ticket),
-                            ).fetchall()
-                            conn.close()
-                            paquet_opts = [
-                                f"Paquet N°{p[0]} ({p[1]} pcs)"
-                                for p in paquets_db
-                            ]
-                            if paquet_opts:
-                                sel_paquet_str = st.selectbox(
-                                    "Paquet",
-                                    paquet_opts,
-                                    key=f"prod_paquet_{cat_key}",
-                                )
-                                chosen_p_idx = paquet_opts.index(
-                                    sel_paquet_str
-                                )
-                                chosen_paquet = {
-                                    "paquet_num": paquets_db[chosen_p_idx][0],
-                                    "quantite": paquets_db[chosen_p_idx][1],
-                                }
-                            else:
-                                chosen_paquet = {"paquet_num": 1, "quantite": 0}
-                        else:
-                            chosen_paquet = {"paquet_num": 1, "quantite": 0}
+                        # --- التعديل هنا: إدخال أرقام الباكوات بحرية عبر خانة نصية ---
+                        paquet_input_str = st.text_input(
+                            "Numéro(s) de Paquet (ex: 1 ou 1,2,3 ou 1-5)",
+                            value="1",
+                            key=f"prod_paquet_input_{cat_key}",
+                            help="أدخل رقم الباكو مباشرة (مثال: 5) أو عدة أرقام مفصولة بفواصل (مثال: 1, 2, 3)"
+                        )
+                        
+                        qty_per_paquet = st.number_input(
+                            "Nombre de pièces par paquet",
+                            min_value=1,
+                            value=20,
+                            key=f"prod_qty_paquet_{cat_key}"
+                        )
 
                     if st.button(
                         f"💾 Enregistrer ({title})", key=f"btn_save_{cat_key}"
                     ):
-                        if chosen_paquet["quantite"] > 0:
-                            p_num = chosen_paquet["paquet_num"]
-                            formatted_date_str = selected_date.strftime(
-                                "%d/%m/%Y"
-                            )
+                        # تحليل الأرقام المدخلة في خانة النص
+                        paquets_to_save = []
+                        try:
+                            # دعم الأرقام المفردة أو المفصولة بفواصل
+                            parts = paquet_input_str.split(",")
+                            for p in parts:
+                                p = p.strip()
+                                if "-" in p:
+                                    start, end = map(int, p.split("-"))
+                                    paquets_to_save.extend(list(range(start, end + 1)))
+                                elif p.isdigit():
+                                    paquets_to_save.append(int(p))
+                        except Exception:
+                            pass
 
+                        if not paquets_to_save:
+                            st.error("⚠️ Veuillez entrer un numéro de paquet valide !")
+                        else:
+                            formatted_date_str = selected_date.strftime("%d/%m/%Y")
                             conn = get_connection()
-                            dup = conn.execute(
-                                """SELECT id FROM production
-                                WHERE date=? AND nom=? AND prenom=?
-                                AND modele=? AND ticket=? AND paquet_num=?
-                                AND sous_categorie=?""",
-                                (
-                                    formatted_date_str,
-                                    w_selected_obj["Nom"],
-                                    w_selected_obj["Prénom"],
-                                    sel_cmd,
-                                    sel_ticket,
-                                    p_num,
-                                    sous_cat,
-                                ),
-                            ).fetchone()
-
-                          
-
-                            if dup:
-                                st.error(
-                                    f"❌ ERREUR : Paquet déjà enregistré par cette ouvrière !"
-                                )
-                                conn.close()
-                            else:
-                                pcs = chosen_paquet["quantite"]
-                                conn.execute(
-                                    """INSERT INTO production (date, nom, prenom, categorie, sous_categorie, poste, heure, modele, ticket, paquet_num, pieces, objectif)
-                                                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                            
+                            saved_count = 0
+                            for p_num in paquets_to_save:
+                                dup = conn.execute(
+                                    """SELECT id FROM production
+                                    WHERE date=? AND nom=? AND prenom=?
+                                    AND modele=? AND ticket=? AND paquet_num=?
+                                    AND sous_categorie=?""",
                                     (
                                         formatted_date_str,
                                         w_selected_obj["Nom"],
                                         w_selected_obj["Prénom"],
-                                        cat_key,
-                                        sous_cat,
-                                        sel_poste,
-                                        heure,
                                         sel_cmd,
                                         sel_ticket,
                                         p_num,
-                                        pcs,
-                                        w_selected_obj["Objectif"],
+                                        sous_cat,
                                     ),
-                                )
-                                conn.commit()
-                                conn.close()
-                                st.success(f"✅ Enregistré avec succès !")
+                                ).fetchone()
+
+                                if not dup:
+                                    conn.execute(
+                                        """INSERT INTO production (date, nom, prenom, categorie, sous_categorie, poste, heure, modele, ticket, paquet_num, pieces, objectif)
+                                                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                                        (
+                                            formatted_date_str,
+                                            w_selected_obj["Nom"],
+                                            w_selected_obj["Prénom"],
+                                            cat_key,
+                                            sous_cat,
+                                            sel_poste,
+                                            heure,
+                                            sel_cmd,
+                                            sel_ticket,
+                                            p_num,
+                                            qty_per_paquet,
+                                            w_selected_obj["Objectif"],
+                                        ),
+                                    )
+                                    saved_count += 1
+
+                            conn.commit()
+                            conn.close()
+                            
+                            if saved_count > 0:
+                                st.success(f"✅ Enregistré avec succès ({saved_count} paquet(s)) !")
                                 st.rerun()
+                            else:
+                                st.error("❌ Erreur : Ces paquets ont déjà été enregistrés pour cette ouvrière !")
 
 with tab_manque:
     st.subheader("⚠️ Enregistrer les manques / pannes")
@@ -719,12 +705,12 @@ with tab_manque:
                 types_manques_avec_panne.append("Panne")
 
             type_manque = st.selectbox(
-    "Type de Manque",
-    list(manques_types) + (
-        ["Panne"] if "Panne" not in manques_types else []
-    ),
-    key="manque_type"
-)
+                "Type de Manque",
+                list(manques_types) + (
+                    ["Panne"] if "Panne" not in manques_types else []
+                ),
+                key="manque_type"
+            )
             duree_panne = st.selectbox(
                 "Durée",
                 [
@@ -767,7 +753,6 @@ with tab_suivi:
     df_m = pd.read_sql_query("SELECT * FROM manques", conn)
     conn.close()
 
-    # --- TABLEAU SORTIE MODÈLE ---
     st.markdown("### 📦 Sortie Modèle - Validation Contrôle Final")
     summary_rows = []
 
