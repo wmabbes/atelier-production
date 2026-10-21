@@ -11,7 +11,6 @@ st.set_page_config(
 st.markdown(
     """
     <style>
-    /* خلفية صفحة تسجيل الدخول مع صورة تصاميم أزياء (Fashion Design) بتدرجات الأزرق */
     .login-bg {
         background-image: linear-gradient(rgba(10, 25, 47, 0.75), rgba(15, 32, 67, 0.85)), 
                           url('https://images.unsplash.com/photo-1558769132-cb1aea458c5e?q=80&w=1600&auto=format&fit=crop');
@@ -40,6 +39,14 @@ st.markdown(
     .stButton>button:hover {
         background-color: #122647;
         color: white;
+    }
+    .metric-card {
+        background-color: white;
+        padding: 15px;
+        border-radius: 10px;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+        text-align: center;
+        border-left: 5px solid #1b3b6f;
     }
     </style>
 """,
@@ -609,6 +616,32 @@ with tab_prod:
                             value=20,
                             key=f"prod_qty_paquet_{cat_key}"
                         )
+
+                    # --- حساب وحساب المردودية (Rendement & Pourcentage) فورياً ---
+                    # حساب إجمالي عدد القطع المدخلة في خانة الباكوات الحالية
+                    temp_total_pcs = 0
+                    try:
+                        for p in paquet_input_str.split(","):
+                            p = p.strip()
+                            if "-" in p:
+                                start, end = map(int, p.split("-"))
+                                temp_total_pcs += (end - start + 1) * qty_per_paquet
+                            elif p.isdigit():
+                                temp_total_pcs += qty_per_paquet
+                    except:
+                        temp_total_pcs = qty_per_paquet
+
+                    obj_val = w_selected_obj["Objectif"]
+                    rendement_pct = round((temp_total_pcs / obj_val) * 100, 1) if obj_val > 0 else 0
+
+                    st.markdown("---")
+                    m_col1, m_col2, m_col3 = st.columns(3)
+                    with m_col1:
+                        st.metric(label="📦 Total Pièces Saisies", value=f"{temp_total_pcs} pcs")
+                    with m_col2:
+                        st.metric(label="🎯 Objectif Fixe (par heure)", value=f"{obj_val} pcs")
+                    with m_col3:
+                        st.metric(label="⚡ Rendement (Pourcentage)", value=f"{rendement_pct}%")
 
                     if st.button(
                         f"💾 Enregistrer ({title})", key=f"btn_save_{cat_key}"
