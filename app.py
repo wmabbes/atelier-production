@@ -601,35 +601,50 @@ with tab_prod:
                             key=f"prod_paquet_input_{cat_key}",
                             help="أدخل رقم الباكو مباشرة (مثال: 5) أو عدة أرقام مفصولة بفواصل (مثال: 1, 2, 3)"
                         )
+
+                        # --- جلب كمية القطع تلقائياً لكل باكو من قاعدة البيانات ---
+                        total_calculated_pieces = 0
+                        parsed_paquets = []
                         
-                        qty_per_paquet = st.number_input(
-                            "Nombre de pièces par paquet",
-                            min_value=1,
-                            value=20,
-                            key=f"prod_qty_paquet_{cat_key}"
-                        )
+                        try:
+                            parts = paquet_input_str.split(",")
+                            conn = get_connection()
+                            for p in parts:
+                                p = p.strip()
+                                if "-" in p:
+                                    start, end = map(int, p.split("-"))
+                                    for p_num in range(start, end + 1):
+                                        parsed_paquets.append(p_num)
+                                        res = conn.execute(
+                                            "SELECT quantite FROM paquets WHERE modele=? AND ticket=? AND paquet_num=?",
+                                            (sel_cmd, sel_ticket, p_num)
+                                        ).fetchone()
+                                        if res:
+                                            total_calculated_pieces += res[0]
+                                elif p.isdigit():
+                                    p_num = int(p)
+                                    parsed_paquets.append(p_num)
+                                    res = conn.execute(
+                                        "SELECT quantite FROM paquets WHERE modele=? AND ticket=? AND paquet_num=?",
+                                        (sel_cmd, sel_ticket, p_num)
+                                    ).fetchone()
+                                    if res:
+                                        total_calculated_pieces += res[0]
+                            conn.close()
+                        except Exception:
+                            pass
 
-                    # --- حساب فوري لعدد القطع والمردودية بناءً على Nombre de pièces par paquet ---
-                    temp_total_pcs = 0
-                    try:
-                        parts = paquet_input_str.split(",")
-                        for p in parts:
-                            p = p.strip()
-                            if "-" in p:
-                                start, end = map(int, p.split("-"))
-                                temp_total_pcs += (end - start + 1) * qty_per_paquet
-                            elif p.isdigit():
-                                temp_total_pcs += qty_per_paquet
-                    except:
-                        temp_total_pcs = qty_per_paquet
+                        # عرض الكمية المحسوبة تلقائياً في خانة للقراءة فقط
+                        st.info(f"📦 Nombre de pièces total (Auto): **{total_calculated_pieces} pcs**")
 
+                    # --- حساب المردودية (Rendement & Pourcentage) تلقائياً ---
                     obj_val = w_selected_obj["Objectif"]
-                    rendement_pct = round((temp_total_pcs / obj_val) * 100, 1) if obj_val > 0 else 0
+                    rendement_pct = round((total_calculated_pieces / obj_val) * 100, 1) if obj_val > 0 else 0
 
                     st.markdown("---")
                     m_col1, m_col2, m_col3 = st.columns(3)
                     with m_col1:
-                        st.metric(label="📦 Total Pièces Calculé", value=f"{temp_total_pcs} pcs")
+                        st.metric(label="📦 Total Pièces", value=f"{total_calculated_pieces} pcs")
                     with m_col2:
                         st.metric(label="🎯 Objectif Fixe (par heure)", value=f"{obj_val} pcs")
                     with m_col3:
@@ -638,69 +653,66 @@ with tab_prod:
                     if st.button(
                         f"💾 Enregistrer ({title})", key=f"btn_save_{cat_key}"
                     ):
-                        paquets_to_save = []
-                        try:
-                            parts = paquet_input_str.split(",")
-                            for p in parts:
-                                p = p.strip()
-                                if "-" in p:
-                                    start, end = map(int, p.split("-"))
-                                    paquets_to_save.extend(list(range(start, end + 1)))
-                                elif p.isdigit():
-                                    paquets_to_save.append(int(p))
-                        except Exception:
-                            pass
-
-                        if not paquets_to_save:
+                        if not parsed_paquets:
                             st.error("⚠️ Veuillez entrer un numéro de paquet valide !")
+                        elif total_calculated_pieces == 0:
+                            st.error("⚠️ Les paquets saisis n'existent pas ou n'ont pas de quantité définie dans le modèle !")
                         else:
                             formatted_date_str = selected_date.strftime("%d/%m/%Y")
                             conn = get_connection()
                             
                             saved_count = 0
-                            for p_num in paquets_to_save:
-                                dup = conn.execute(
-                                    """SELECT id FROM production
-                                    WHERE date=? AND nom=? AND prenom=?
-                                    AND modele=? AND ticket=? AND paquet_num=?
-                                    AND sous_categorie=?""",
-                                    (
-                                        formatted_date_str,
-                                        w_selected_obj["Nom"],
-                                        w_selected_obj["Prénom"],
-                                        sel_cmd,
-                                        sel_ticket,
-                                        p_num,
-                                        sous_cat,
-                                    ),
+                            for p_num in parsed_paquets:
+                                # جلب كمية الباكو الفردية لتخزينها
+                                q_res = conn.execute(
+                                    "SELECT quantite FROM paquets WHERE modele=? AND ticket=? AND paquet_num=?",
+                                    (sel_cmd, sel_ticket, p_num)
                                 ).fetchone()
-
-                                if not dup:
-                                    conn.execute(
-                                        """INSERT INTO production (date, nom, prenom, categorie, sous_categorie, poste, heure, modele, ticket, paquet_num, pieces, objectif)
-                                                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                                
+                                if q_res:
+                                    p_qty = q_res[0]
+                                    dup = conn.execute(
+                                        """SELECT id FROM production
+                                        WHERE date=? AND nom=? AND prenom=?
+                                        AND modele=? AND ticket=? AND paquet_num=?
+                                        AND sous_categorie=?""",
                                         (
                                             formatted_date_str,
                                             w_selected_obj["Nom"],
                                             w_selected_obj["Prénom"],
-                                            cat_key,
-                                            sous_cat,
-                                            sel_poste,
-                                            heure,
                                             sel_cmd,
                                             sel_ticket,
                                             p_num,
-                                            qty_per_paquet,  # يتم اعتماد الكمية مباشرة من Nombre de pièces par paquet
-                                            w_selected_obj["Objectif"],
+                                            sous_cat,
                                         ),
-                                    )
-                                    saved_count += 1
+                                    ).fetchone()
+
+                                    if not dup:
+                                        conn.execute(
+                                            """INSERT INTO production (date, nom, prenom, categorie, sous_categorie, poste, heure, modele, ticket, paquet_num, pieces, objectif)
+                                                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                                            (
+                                                formatted_date_str,
+                                                w_selected_obj["Nom"],
+                                                w_selected_obj["Prénom"],
+                                                cat_key,
+                                                sous_cat,
+                                                sel_poste,
+                                                heure,
+                                                sel_cmd,
+                                                sel_ticket,
+                                                p_num,
+                                                p_qty,
+                                                w_selected_obj["Objectif"],
+                                            ),
+                                        )
+                                        saved_count += 1
 
                             conn.commit()
                             conn.close()
                             
                             if saved_count > 0:
-                                st.success(f"✅ Enregistré avec succès ({saved_count} paquet(s)) ! Total pièces: {saved_count * qty_per_paquet}")
+                                st.success(f"✅ Enregistré avec succès ({saved_count} paquet(s)) ! Total: {total_calculated_pieces} pcs")
                                 st.rerun()
                             else:
                                 st.error("❌ Erreur : Ces paquets ont déjà été enregistrés pour cette ouvrière !")
