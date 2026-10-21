@@ -235,5 +235,4 @@ st.divider()
 st.caption("Note : le rendement affiché ici correspond aux pièces produites par heure de travail effectif. Pour calculer le rendement en pourcentage, il faut ajouter le temps standard de chaque opération.")
 '''
 path = Path("/mnt/data/app.py")
-path.write_text(code, encoding="utf-8")
 print(f"Fichier créé : {path} ({path.stat().st_size} octets)")
