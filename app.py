@@ -602,7 +602,7 @@ with tab_prod:
                             help="Entrez le numéro du paquet (ex: 5) ou plusieurs numéros séparés par des virgules (ex: 1, 2, 3)"
                         )
 
-                        # --- جلب وحساب القطع تلقائياً مع التحقق من عدم تكرار الباكو ---
+                        # --- جلب وحساب القطع تلقائياً مع التدقيق التام ضد التكرار ---
                         total_calculated_pieces = 0
                         parsed_paquets = []
                         duplicate_paquets = []
@@ -621,14 +621,16 @@ with tab_prod:
                                     temps_list = [int(p)]
 
                                 for p_num in temps_list:
+                                    # التحقق هل تم تسجيل هذا الباكو مسبقاً لنفس العاملة بغض النظر عن القسم أو اليوم لمنع التكرار المطلق
                                     already_exists = conn.execute(
                                         """SELECT id FROM production 
-                                        WHERE date=? AND nom=? AND prenom=? AND modele=? AND ticket=? AND paquet_num=? AND sous_categorie=?""",
-                                        (formatted_date_str, w_selected_obj["Nom"], w_selected_obj["Prénom"], sel_cmd, sel_ticket, p_num, sous_cat)
+                                        WHERE nom=? AND prenom=? AND modele=? AND ticket=? AND paquet_num=?""",
+                                        (w_selected_obj["Nom"], w_selected_obj["Prénom"], sel_cmd, sel_ticket, p_num)
                                     ).fetchone()
 
                                     if already_exists:
-                                        duplicate_paquets.append(p_num)
+                                        if p_num not in duplicate_paquets:
+                                            duplicate_paquets.append(p_num)
                                     else:
                                         if p_num not in parsed_paquets:
                                             parsed_paquets.append(p_num)
@@ -643,7 +645,7 @@ with tab_prod:
                             pass
 
                         if duplicate_paquets:
-                            st.warning(f"⚠️ Attention : Le(s) paquet(s) {duplicate_paquets} a/ont déjà été enregistré(s) pour cette ouvrière aujourd'hui et ne sera/seront pas compté(s) deux fois.")
+                            st.warning(f"⚠️ Attention : Le(s) paquet(s) {duplicate_paquets} a/ont déjà été enregistré(s) pour cette ouvrière et ne sera/seront pas compté(s) deux fois.")
 
                         st.info(f"📦 Nombre de pièces total (Auto): **{total_calculated_pieces} pcs**")
 
@@ -679,17 +681,14 @@ with tab_prod:
                                     p_qty = q_res[0]
                                     dup = conn.execute(
                                         """SELECT id FROM production
-                                        WHERE date=? AND nom=? AND prenom=?
-                                        AND modele=? AND ticket=? AND paquet_num=?
-                                        AND sous_categorie=?""",
+                                        WHERE nom=? AND prenom=?
+                                        AND modele=? AND ticket=? AND paquet_num=?""",
                                         (
-                                            formatted_date_str,
                                             w_selected_obj["Nom"],
                                             w_selected_obj["Prénom"],
                                             sel_cmd,
                                             sel_ticket,
                                             p_num,
-                                            sous_cat,
                                         ),
                                     ).fetchone()
 
