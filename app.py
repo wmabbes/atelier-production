@@ -557,7 +557,7 @@ with tab_prod:
                             sous_cat = st.radio(
                                 "Type de Contrôle :",
                                 ["Contrôle DOS", "Contrôle DEVANT"],
-                                key="ctrl_sub_type",
+                                key=f"ctrl_sub_type_{cat_key}",
                             )
                             sel_poste = "Contrôle"
                         else:
@@ -583,9 +583,8 @@ with tab_prod:
                             "SELECT DISTINCT ticket FROM paquets WHERE modele=?",
                             (sel_cmd,),
                         ).fetchall()
-                        conn.close()
+                        
                         tickets_opts = [t[0] for t in tickets_db]
-
                         sel_ticket = (
                             st.selectbox(
                                 "Billet / Ticket",
@@ -596,55 +595,40 @@ with tab_prod:
                             else None
                         )
 
-                        paquet_input_str = st.text_input(
-                            "Numéro(s) de Paquet (ex: 1 ou 1,2,3 ou 1-5)",
-                            value="1",
-                            key=f"prod_paquet_input_{cat_key}",
-                            help="Entrez le numéro du paquet (ex: 5) ou plusieurs numéros séparés par des virgules (ex: 1, 2, 3)"
-                        )
+                        # --- جلب الباكوات المتاحة فقط (الغير مسجلة مسبقاً لهذه العاملة) ---
+                        available_paquets = []
+                        if sel_ticket:
+                            all_p_db = conn.execute(
+                                "SELECT paquet_num, quantite FROM paquets WHERE modele=? AND ticket=? ORDER BY paquet_num",
+                                (sel_cmd, sel_ticket)
+                            ).fetchall()
 
-                        # --- الفحص والتدقيق المانع للتكرار باستخدام مجموعة (Set) ---
-                        total_calculated_pieces = 0
-                        parsed_paquets = []
-                        duplicate_paquets = []
-                        
-                        try:
-                            parts = paquet_input_str.split(",")
-                            raw_nums = set()
-                            for p in parts:
-                                p = p.strip()
-                                if "-" in p:
-                                    start, end = map(int, p.split("-"))
-                                    for n in range(start, end + 1):
-                                        raw_nums.add(n)
-                                elif p.isdigit():
-                                    raw_nums.add(int(p))
-
-                            conn = get_connection()
-                            for p_num in raw_nums:
-                                # التحقق المطلق في جدول الإنتاج لنفس العاملة والموديل والتيكت ورقم الباكو
-                                exists = conn.execute(
-                                    """SELECT id FROM production 
-                                    WHERE nom=? AND prenom=? AND modele=? AND ticket=? AND paquet_num=?""",
+                            for p_num, p_qte in all_p_db:
+                                # التحقق هل تم تسجيله مسبقاً لهذه العاملة
+                                already_done = conn.execute(
+                                    "SELECT id FROM production WHERE nom=? AND prenom=? AND modele=? AND ticket=? AND paquet_num=?",
                                     (w_selected_obj["Nom"], w_selected_obj["Prénom"], sel_cmd, sel_ticket, p_num)
                                 ).fetchone()
+                                if not already_done:
+                                    available_paquets.append((p_num, p_qte))
+                        conn.close()
 
-                                if exists:
-                                    duplicate_paquets.append(p_num)
-                                else:
-                                    parsed_paquets.append(p_num)
-                                    res = conn.execute(
-                                        "SELECT quantite FROM paquets WHERE modele=? AND ticket=? AND paquet_num=?",
-                                        (sel_cmd, sel_ticket, p_num)
-                                    ).fetchone()
-                                    if res:
-                                        total_calculated_pieces += res[0]
-                            conn.close()
-                        except Exception:
-                            pass
+                        selected_paquets_tuples = []
+                        total_calculated_pieces = 0
 
-                        if duplicate_paquets:
-                            st.warning(f"⚠️ Attention : Le(s) paquet(s) {duplicate_paquets} a/ont déjà été enregistré(s) pour cette ouvrière et ne sera/seront pas compté(s) deux fois.")
+                        if available_paquets:
+                            # استخدام مربعات اختيار متعددة نظيفة وآمنة تماماً ضد التكرار
+                            st.markdown("#### 📦 Choisir les paquets disponibles :")
+                            for p_num, p_qte in available_paquets:
+                                checked = st.checkbox(
+                                    f"Paquet N° {p_num} ({p_qte} pcs)",
+                                    key=f"chk_p_{cat_key}_{sel_cmd}_{sel_ticket}_{p_num}"
+                                )
+                                if checked:
+                                    selected_paquets_tuples.append((p_num, p_qte))
+                                    total_calculated_pieces += p_qte
+                        else:
+                            st.info("ℹ️ Tous les paquets de ce ticket ont déjà été enregistrés pour cette ouvrière.")
 
                         st.info(f"📦 Nombre de pièces total (Auto): **{total_calculated_pieces} pcs**")
 
@@ -664,43 +648,36 @@ with tab_prod:
                     if st.button(
                         f"💾 Enregistrer ({title})", key=f"btn_save_{cat_key}"
                     ):
-                        if not parsed_paquets:
-                            st.error("⚠️ Veuillez entrer un numéro de paquet valide ou non déjà enregistré !")
+                        if not selected_paquets_tuples:
+                            st.error("⚠️ Veuillez cocher au moins un paquet valide !")
                         else:
                             formatted_date_str = selected_date.strftime("%d/%m/%Y")
                             conn = get_connection()
                             saved_count = 0
                             
-                            for p_num in parsed_paquets:
-                                q_res = conn.execute(
-                                    "SELECT quantite FROM paquets WHERE modele=? AND ticket=? AND paquet_num=?",
-                                    (sel_cmd, sel_ticket, p_num)
-                                ).fetchone()
-                                
-                                if q_res:
-                                    p_qty = q_res[0]
-                                    try:
-                                        conn.execute(
-                                            """INSERT INTO production (date, nom, prenom, categorie, sous_categorie, poste, heure, modele, ticket, paquet_num, pieces, objectif)
-                                                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-                                            (
-                                                formatted_date_str,
-                                                w_selected_obj["Nom"],
-                                                w_selected_obj["Prénom"],
-                                                cat_key,
-                                                sous_cat,
-                                                sel_poste,
-                                                heure,
-                                                sel_cmd,
-                                                sel_ticket,
-                                                p_num,
-                                                p_qty,
-                                                w_selected_obj["Objectif"],
-                                            ),
-                                        )
-                                        saved_count += 1
-                                    except sqlite3.IntegrityError:
-                                        pass
+                            for p_num, p_qty in selected_paquets_tuples:
+                                try:
+                                    conn.execute(
+                                        """INSERT INTO production (date, nom, prenom, categorie, sous_categorie, poste, heure, modele, ticket, paquet_num, pieces, objectif)
+                                                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                                        (
+                                            formatted_date_str,
+                                            w_selected_obj["Nom"],
+                                            w_selected_obj["Prénom"],
+                                            cat_key,
+                                            sous_cat,
+                                            sel_poste,
+                                            heure,
+                                            sel_cmd,
+                                            sel_ticket,
+                                            p_num,
+                                            p_qty,
+                                            w_selected_obj["Objectif"],
+                                        ),
+                                    )
+                                    saved_count += 1
+                                except sqlite3.IntegrityError:
+                                    pass
 
                             conn.commit()
                             conn.close()
