@@ -1,238 +1,612 @@
-from pathlib import Path
 
-code = r'''import streamlit as st
+import streamlit as st
 import pandas as pd
-from datetime import datetime, time
-from io import BytesIO
+from datetime import datetime
 
-st.set_page_config(page_title="Rendement Atelier", page_icon="🧵", layout="wide")
+st.set_page_config(
+    page_title="Gestion Rendement Atelier",
+    page_icon="🧵",
+    layout="wide"
+)
 
 SECTIONS = ["DOS", "DEVANT", "FINITION", "CONTRÔLE"]
-PANNES_DEFAUT = [
-    "Panne machine", "Manque de pièces", "Manque de matière",
-    "Manque de gabarit", "Absence ouvrière", "Arrêt de production", "Autre panne"
-]
+COULEURS = ["Blanc", "Jaune"]
 
-def init_state():
-    defaults = {
-        "ouvriers": {s: [] for s in SECTIONS},
-        "productions": [],
-        "pannes": [],
-        "modeles": [],
-        "ticket_keys": set(),
-        "worker_counter": 1,
-    }
-    for key, value in defaults.items():
-        if key not in st.session_state:
-            st.session_state[key] = value
+# Initialisation des données
+DEFAULTS = {
+    "ouvriers": {s: [] for s in SECTIONS},
+    "productions": [],
+    "pannes": [],
+    "types_pannes": [
+        "Panne machine",
+        "Manque matière",
+        "Manque pièce",
+        "Manque gabarit",
+        "Attente alimentation",
+        "Changement modèle",
+        "Problème qualité",
+        "Absence ouvrière",
+        "Autre"
+    ],
+    "modeles": [],
+    "tickets_utilises": []
+}
 
-def minutes_travail(debut, fin, pause_debut, pause_fin):
-    debut_dt = datetime.combine(datetime.today(), debut)
-    fin_dt = datetime.combine(datetime.today(), fin)
-    pause_debut_dt = datetime.combine(datetime.today(), pause_debut)
-    pause_fin_dt = datetime.combine(datetime.today(), pause_fin)
-    total = max(0, (fin_dt - debut_dt).total_seconds() / 60)
-    pause = max(0, (min(fin_dt, pause_fin_dt) - max(debut_dt, pause_debut_dt)).total_seconds() / 60)
-    return max(0, total - pause)
+for key, value in DEFAULTS.items():
+    if key not in st.session_state:
+        st.session_state[key] = value.copy() if key == "types_pannes" else (
+            {k: v.copy() for k, v in value.items()}
+            if isinstance(value, dict)
+            else list(value) if isinstance(value, list)
+            else value
+        )
 
-init_state()
-st.title("🧵 Calcul du rendement des ouvriers")
-st.caption("Atelier de confection • DOS • DEVANT • FINITION • CONTRÔLE")
 
-with st.sidebar:
-    st.header("⏱️ Horaires de travail")
-    heure_debut = st.time_input("Début", value=time(7, 30), key="heure_debut")
-    heure_fin = st.time_input("Fin", value=time(17, 0), key="heure_fin")
-    pause_debut = st.time_input("Début de pause", value=time(12, 0), key="pause_debut")
-    pause_fin = st.time_input("Fin de pause", value=time(13, 0), key="pause_fin")
-    minutes = minutes_travail(heure_debut, heure_fin, pause_debut, pause_fin)
-    st.metric("Temps de travail effectif", f"{int(minutes // 60)} h {int(minutes % 60):02d} min")
-    st.caption("Avec les horaires par défaut : 8 h 30 (510 minutes).")
+def heures_travail():
+    # 07:30 - 17:00 moins pause 12:00 - 13:00
+    return 8.5
 
-tabs = st.tabs(["👷 Ouvriers & rendement", "🎫 Modèles et tickets", "🛠️ Pannes", "📊 Résumé & export"])
 
-with tabs[0]:
-    st.subheader("Listes indépendantes par poste")
-    st.info("Ajoute les ouvriers dans le tableau du poste correspondant. Un même nom ne peut pas être ajouté deux fois dans la même liste.")
-    for section in SECTIONS:
-        with st.expander(f"Tableau {section}", expanded=(section == "DOS")):
-            with st.form(f"form_ouvrier_{section}", clear_on_submit=True):
-                c1, c2 = st.columns([2, 2])
-                nom = c1.text_input("Nom de l'ouvrier/ouvrière", key=f"nom_{section}")
-                poste = c2.text_input("Poste / opération", key=f"poste_{section}", placeholder="Ex. Surfilage, plaquage…")
-                ajoute = st.form_submit_button(f"➕ Ajouter à {section}")
-            if ajoute:
-                nom_net = nom.strip()
-                if not nom_net:
-                    st.error("ERREUR : Saisis le nom de l'ouvrier.")
-                elif any(o["nom"].casefold() == nom_net.casefold() for o in st.session_state.ouvriers[section]):
-                    st.error(f"ERREUR : {nom_net} existe déjà dans le tableau {section}.")
-                else:
-                    st.session_state.ouvriers[section].append({"nom": nom_net, "poste": poste.strip() or "Non précisé"})
-                    st.success(f"{nom_net} ajouté(e) à {section}.")
-                    st.rerun()
+def nombre_produit(nom_modele, section, ouvrier):
+    return sum(
+        int(p["Quantité"])
+        for p in st.session_state.productions
+        if p["Modèle"] == nom_modele
+        and p["Section"] == section
+        and p["Ouvrier"] == ouvrier
+    )
 
-            ouvriers = st.session_state.ouvriers[section]
-            if ouvriers:
-                lignes = []
-                for o in ouvriers:
-                    prod = sum(int(p["quantite"]) for p in st.session_state.productions
-                               if p["section"] == section and p["ouvrier"].casefold() == o["nom"].casefold())
-                    rendement_h = prod / (minutes / 60) if minutes > 0 else 0
-                    lignes.append({"Nom": o["nom"], "Poste": o["poste"], "Quantité totale": prod,
-                                   "Rendement moyen / heure": round(rendement_h, 2)})
-                st.dataframe(pd.DataFrame(lignes), use_container_width=True, hide_index=True)
-                choix = st.selectbox("Choisir un ouvrier à retirer", ["—"] + [o["nom"] for o in ouvriers],
-                                     key=f"retirer_{section}")
-                if st.button(f"🗑️ Retirer de {section}", key=f"btn_retirer_{section}"):
-                    if choix == "—":
-                        st.warning("Choisis un ouvrier.")
-                    else:
-                        st.session_state.ouvriers[section] = [o for o in ouvriers if o["nom"] != choix]
-                        st.success(f"{choix} retiré(e) de la liste. Les productions déjà enregistrées sont conservées.")
-                        st.rerun()
+
+def temps_pannes(nom_modele, section, ouvrier):
+    total = 0
+    for p in st.session_state.pannes:
+        if (
+            p["Modèle"] == nom_modele
+            and p["Section"] == section
+            and (p["Ouvrier"] == ouvrier or p["Ouvrier"] == "Toute la section")
+        ):
+            total += int(p["Durée (min)"])
+    return total
+
+
+def rendement(nom_modele, section, ouvrier):
+    quantite = nombre_produit(nom_modele, section, ouvrier)
+    temps_disponible = heures_travail() - temps_pannes(
+        nom_modele, section, ouvrier
+    ) / 60
+    if temps_disponible <= 0:
+        return 0
+    return round(quantite / temps_disponible, 2)
+
+
+st.title("🧵 Gestion de production et rendement")
+st.caption(
+    "Horaire : 07:30–17:00 | Pause déduite : 12:00–13:00 | "
+    "Temps normal : 8 h 30"
+)
+
+tab_ouvriers, tab_modeles, tab_production, tab_pannes, tab_resume = st.tabs(
+    [
+        "👥 Ouvriers",
+        "📋 Modèles",
+        "📦 Production",
+        "🔧 Pannes",
+        "📊 Résumé"
+    ]
+)
+
+# =========================================================
+# 1. GESTION DES OUVRIERS
+# =========================================================
+with tab_ouvriers:
+    st.header("Gestion des ouvriers")
+
+    section_ouvrier = st.selectbox(
+        "Choisir une section",
+        SECTIONS,
+        key="section_ouvrier"
+    )
+
+    with st.form("ajouter_ouvrier", clear_on_submit=True):
+        nom = st.text_input("Nom et prénom de l'ouvrier")
+        poste = st.text_input("Poste / opération")
+        ajouter = st.form_submit_button("➕ Ajouter l'ouvrier")
+
+        if ajouter:
+            nom = nom.strip()
+            poste = poste.strip()
+
+            if not nom:
+                st.error("Saisir le nom de l'ouvrier.")
+            elif any(
+                o["Nom"].casefold() == nom.casefold()
+                for o in st.session_state.ouvriers[section_ouvrier]
+            ):
+                st.error("Cet ouvrier existe déjà dans cette section.")
             else:
-                st.caption("Aucun ouvrier ajouté pour le moment.")
+                st.session_state.ouvriers[section_ouvrier].append({
+                    "Nom": nom,
+                    "Poste": poste if poste else "Non précisé"
+                })
+                st.success("Ouvrier ajouté avec succès.")
+                st.rerun()
+
+    liste = st.session_state.ouvriers[section_ouvrier]
+
+    if liste:
+        st.subheader(f"Liste des ouvriers — {section_ouvrier}")
+        st.dataframe(
+            pd.DataFrame(liste),
+            use_container_width=True,
+            hide_index=True
+        )
+
+        nom_a_supprimer = st.selectbox(
+            "Choisir un ouvrier à supprimer",
+            [o["Nom"] for o in liste],
+            key="ouvrier_a_supprimer"
+        )
+
+        if st.button("🗑️ Supprimer l'ouvrier"):
+            st.session_state.ouvriers[section_ouvrier] = [
+                o for o in liste if o["Nom"] != nom_a_supprimer
+            ]
+            st.warning(
+                "Ouvrier supprimé de la liste. "
+                "Les anciens enregistrements de production sont conservés."
+            )
+            st.rerun()
+    else:
+        st.info("Aucun ouvrier enregistré dans cette section.")
 
     st.divider()
-    st.subheader("Enregistrer une production (paquet)")
-    noms_modeles = [m["code"] for m in st.session_state.modeles]
-    if not noms_modeles:
-        st.warning("Crée d'abord un modèle dans l'onglet « Modèles et tickets ».")
-    else:
-        with st.form("production_form", clear_on_submit=True):
-            c1, c2, c3 = st.columns(3)
-            modele_prod = c1.selectbox("Modèle", noms_modeles)
-            section_prod = c2.selectbox("Tableau / section", SECTIONS)
-            ouv_dispo = [o["nom"] for o in st.session_state.ouvriers[section_prod]]
-            ouvrier_prod = c3.selectbox("Ouvrier", ["—"] + ouv_dispo)
-            c4, c5, c6 = st.columns(3)
-            couleur_prod = c4.selectbox("Couleur du ticket", ["Blanc", "Jaune"])
-            ticket_prod = c5.text_input("Numéro du ticket / paquet")
-            quantite_prod = c6.number_input("Quantité produite (pièces)", min_value=1, value=1, step=1)
-            enregistrer_prod = st.form_submit_button("✅ Enregistrer la production")
-        if enregistrer_prod:
-            ticket = ticket_prod.strip()
-            if ouvrier_prod == "—":
-                st.error("ERREUR : Choisis un ouvrier inscrit dans cette section.")
-            elif not ticket:
-                st.error("ERREUR : Saisis le numéro du ticket/paquet.")
+    st.subheader("Effectif par section")
+
+    effectifs = [
+        {"Section": s, "Nombre d'ouvriers": len(st.session_state.ouvriers[s])}
+        for s in SECTIONS
+    ]
+    st.dataframe(
+        pd.DataFrame(effectifs),
+        use_container_width=True,
+        hide_index=True
+    )
+
+
+# =========================================================
+# 2. GESTION DES MODÈLES
+# =========================================================
+with tab_modeles:
+    st.header("Modèles de fabrication")
+
+    with st.form("ajouter_modele", clear_on_submit=True):
+        nom_modele = st.text_input("Nom ou référence du modèle")
+        quantite_prevue = st.number_input(
+            "Quantité totale prévue (pièces)",
+            min_value=1,
+            value=100,
+            step=1
+        )
+        nb_blanc = st.number_input(
+            "Nombre de paquets Blanc prévus",
+            min_value=0,
+            value=0,
+            step=1
+        )
+        nb_jaune = st.number_input(
+            "Nombre de paquets Jaune prévus",
+            min_value=0,
+            value=0,
+            step=1
+        )
+        ajouter_modele = st.form_submit_button("➕ Créer le modèle")
+
+        if ajouter_modele:
+            nom_modele = nom_modele.strip()
+            if not nom_modele:
+                st.error("Saisir le nom du modèle.")
+            elif any(
+                m["Modèle"].casefold() == nom_modele.casefold()
+                for m in st.session_state.modeles
+            ):
+                st.error("Ce modèle existe déjà.")
             else:
-                key = (modele_prod.casefold(), couleur_prod.casefold(), ticket.casefold())
-                if key in st.session_state.ticket_keys:
-                    st.error(f"ERREUR : Le paquet/ticket « {ticket} » du modèle {modele_prod} ({couleur_prod}) est déjà enregistré. Production non ajoutée.")
-                else:
-                    st.session_state.ticket_keys.add(key)
-                    st.session_state.productions.append({
-                        "date": datetime.now().strftime("%Y-%m-%d"),
-                        "modele": modele_prod, "section": section_prod,
-                        "ouvrier": ouvrier_prod, "couleur": couleur_prod,
-                        "ticket": ticket, "quantite": int(quantite_prod),
-                        "heure": datetime.now().strftime("%H:%M:%S")
-                    })
-                    st.success(f"Production enregistrée : paquet {ticket}, {ouvrier_prod}, {section_prod}.")
-                    st.rerun()
-
-    if st.session_state.productions:
-        st.subheader("Historique des productions")
-        dfp = pd.DataFrame(st.session_state.productions)
-        dfp = dfp.rename(columns={"date":"Date", "modele":"Modèle", "section":"Section", "ouvrier":"Ouvrier",
-                                  "couleur":"Ticket", "ticket":"N° paquet", "quantite":"Quantité", "heure":"Heure"})
-        st.dataframe(dfp, use_container_width=True, hide_index=True)
-
-with tabs[1]:
-    st.subheader("Créer un modèle")
-    with st.form("modele_form", clear_on_submit=True):
-        c1, c2, c3 = st.columns(3)
-        code_modele = c1.text_input("Code / nom du modèle", placeholder="Ex. CHEMISE-001")
-        quantite_prevue = c2.number_input("Quantité totale prévue (pièces)", min_value=1, value=100, step=1)
-        paquets_blancs = c3.number_input("Nombre de paquets tickets blancs", min_value=0, value=0, step=1)
-        paquets_jaunes = st.number_input("Nombre de paquets tickets jaunes", min_value=0, value=0, step=1)
-        creer_modele = st.form_submit_button("➕ Créer le modèle")
-    if creer_modele:
-        code = code_modele.strip()
-        if not code:
-            st.error("Saisis le code du modèle.")
-        elif any(m["code"].casefold() == code.casefold() for m in st.session_state.modeles):
-            st.error("ERREUR : Ce modèle existe déjà.")
-        else:
-            st.session_state.modeles.append({"code": code, "quantite_prevue": int(quantite_prevue),
-                                             "blancs": int(paquets_blancs), "jaunes": int(paquets_jaunes)})
-            st.success(f"Modèle {code} créé.")
-            st.rerun()
+                st.session_state.modeles.append({
+                    "Modèle": nom_modele,
+                    "Quantité prévue": int(quantite_prevue),
+                    "Paquets Blanc prévus": int(nb_blanc),
+                    "Paquets Jaune prévus": int(nb_jaune),
+                    "Date création": datetime.now().strftime("%d/%m/%Y %H:%M")
+                })
+                st.success("Modèle créé.")
+                st.rerun()
 
     if st.session_state.modeles:
         st.subheader("Modèles enregistrés")
-        for m in st.session_state.modeles:
-            with st.container(border=True):
-                deja = sum(p["quantite"] for p in st.session_state.productions if p["modele"] == m["code"])
-                tickets_blancs = sum(1 for p in st.session_state.productions if p["modele"] == m["code"] and p["couleur"] == "Blanc")
-                tickets_jaunes = sum(1 for p in st.session_state.productions if p["modele"] == m["code"] and p["couleur"] == "Jaune")
-                st.write(f"**{m['code']}** — prévu : {m['quantite_prevue']} pièces — produit : {deja} pièces")
-                st.progress(min(1.0, deja / m["quantite_prevue"]))
-                st.caption(f"Tickets enregistrés : Blanc {tickets_blancs}/{m['blancs']} • Jaune {tickets_jaunes}/{m['jaunes']}")
-                if deja >= m["quantite_prevue"]:
-                    st.success("MODÈLE TERMINÉ — quantité prévue atteinte.")
-                else:
-                    st.info(f"Reste {m['quantite_prevue'] - deja} pièce(s) pour atteindre la quantité prévue.")
-        st.caption("Le statut « modèle terminé » se base sur la quantité totale prévue. Les quantités de tickets blancs/jaunes servent au suivi des paquets.")
-
-with tabs[2]:
-    st.subheader("Enregistrer une panne / un arrêt")
-    with st.form("panne_form", clear_on_submit=True):
-        c1, c2 = st.columns(2)
-        type_panne = c1.selectbox("Type de panne", PANNES_DEFAUT + ["Autre"])
-        section_panne = c2.selectbox("Section concernée", SECTIONS + ["Atelier entier"])
-        c3, c4, c5 = st.columns(3)
-        debut_panne = c3.time_input("Heure début", value=time(10, 0))
-        fin_panne = c4.time_input("Heure fin", value=time(10, 15))
-        detail_panne = c5.text_input("Détail (facultatif)")
-        ajouter_panne = st.form_submit_button("➕ Ajouter la panne")
-    if ajouter_panne:
-        debut_dt = datetime.combine(datetime.today(), debut_panne)
-        fin_dt = datetime.combine(datetime.today(), fin_panne)
-        if fin_dt <= debut_dt:
-            st.error("ERREUR : L'heure de fin doit être après l'heure de début.")
-        else:
-            duree = int((fin_dt - debut_dt).total_seconds() / 60)
-            st.session_state.pannes.append({"Date": datetime.now().strftime("%Y-%m-%d"), "Type de panne": type_panne,
-                                             "Section": section_panne, "Début": debut_panne.strftime("%H:%M"),
-                                             "Fin": fin_panne.strftime("%H:%M"), "Durée (min)": duree,
-                                             "Détail": detail_panne.strip()})
-            st.success(f"Panne enregistrée : {duree} minute(s).")
-            st.rerun()
-    if st.session_state.pannes:
-        st.dataframe(pd.DataFrame(st.session_state.pannes), use_container_width=True, hide_index=True)
-        if st.button("Effacer l'historique des pannes"):
-            st.session_state.pannes = []
-            st.rerun()
-
-with tabs[3]:
-    st.subheader("Résumé de la journée")
-    total_pieces = sum(p["quantite"] for p in st.session_state.productions)
-    st.metric("Total pièces enregistrées", total_pieces)
-    st.metric("Paquets/tickets uniques", len(st.session_state.productions))
-    st.metric("Nombre de pannes", len(st.session_state.pannes))
-    if st.session_state.productions:
-        df = pd.DataFrame(st.session_state.productions)
-        resume = df.groupby(["section", "ouvrier"], as_index=False).agg(
-            **{"Quantité totale": ("quantite", "sum"), "Nombre de paquets": ("ticket", "count")}
+        st.dataframe(
+            pd.DataFrame(st.session_state.modeles),
+            use_container_width=True,
+            hide_index=True
         )
-        resume["Rendement / heure"] = (resume["Quantité totale"] / (minutes / 60)).round(2) if minutes > 0 else 0
-        st.dataframe(resume.rename(columns={"section":"Section", "ouvrier":"Ouvrier"}),
-                     use_container_width=True, hide_index=True)
-        st.download_button("⬇️ Télécharger les productions (CSV)",
-                           data=df.to_csv(index=False).encode("utf-8-sig"),
-                           file_name="productions_atelier.csv", mime="text/csv")
+
+        modele_supprimer = st.selectbox(
+            "Modèle à supprimer",
+            [m["Modèle"] for m in st.session_state.modeles],
+            key="modele_supprimer"
+        )
+
+        if st.button("🗑️ Supprimer le modèle"):
+            st.session_state.modeles = [
+                m for m in st.session_state.modeles
+                if m["Modèle"] != modele_supprimer
+            ]
+            st.warning(
+                "Le modèle a été retiré de la liste. "
+                "Les productions déjà enregistrées ne sont pas supprimées."
+            )
+            st.rerun()
     else:
-        st.info("Aucune production enregistrée. Ajoute des modèles, des ouvriers et des tickets pour commencer.")
-    if st.session_state.modeles:
-        st.download_button("⬇️ Télécharger les modèles (CSV)",
-                           data=pd.DataFrame(st.session_state.modeles).to_csv(index=False).encode("utf-8-sig"),
-                           file_name="modeles_atelier.csv", mime="text/csv")
+        st.info("Crée d'abord un modèle avant d'enregistrer la production.")
+
+
+# =========================================================
+# 3. ENREGISTREMENT DE LA PRODUCTION
+# =========================================================
+with tab_production:
+    st.header("Enregistrer la production")
+
+    if not st.session_state.modeles:
+        st.warning("Ajoute d'abord un modèle dans l'onglet Modèles.")
+    else:
+        noms_modeles = [m["Modèle"] for m in st.session_state.modeles]
+
+        modele = st.selectbox(
+            "Modèle",
+            noms_modeles,
+            key="prod_modele"
+        )
+
+        section = st.selectbox(
+            "Section",
+            SECTIONS,
+            key="prod_section"
+        )
+
+        ouvriers_section = st.session_state.ouvriers[section]
+        noms_ouvriers = [o["Nom"] for o in ouvriers_section]
+
+        if not noms_ouvriers:
+            st.warning(
+                f"Aucun ouvrier dans {section}. "
+                "Ajoute d'abord les ouvriers dans l'onglet Ouvriers."
+            )
+        else:
+            with st.form("form_production", clear_on_submit=True):
+                ouvrier = st.selectbox("Ouvrier", noms_ouvriers)
+                poste_ouvrier = next(
+                    (
+                        o["Poste"] for o in ouvriers_section
+                        if o["Nom"] == ouvrier
+                    ),
+                    "Non précisé"
+                )
+
+                couleur = st.selectbox("Couleur du ticket", COULEURS)
+                numero_paquet = st.text_input(
+                    "Numéro du paquet",
+                    placeholder="Exemple : 001"
+                )
+                quantite = st.number_input(
+                    "Quantité réalisée (pièces)",
+                    min_value=1,
+                    value=1,
+                    step=1
+                )
+                enregistrer = st.form_submit_button(
+                    "✅ Enregistrer la production"
+                )
+
+                if enregistrer:
+                    numero_paquet = numero_paquet.strip()
+
+                    if not numero_paquet:
+                        st.error("Saisir le numéro du paquet.")
+                    else:
+                        cle_ticket = (
+                            modele.casefold(),
+                            section,
+                            couleur,
+                            numero_paquet.casefold()
+                        )
+
+                        if cle_ticket in st.session_state.tickets_utilises:
+                            st.error(
+                                "Erreur : ce paquet a déjà été enregistré "
+                                "pour ce modèle, cette section et cette couleur."
+                            )
+                        else:
+                            st.session_state.tickets_utilises.append(cle_ticket)
+                            st.session_state.productions.append({
+                                "Date": datetime.now().strftime("%d/%m/%Y %H:%M"),
+                                "Modèle": modele,
+                                "Section": section,
+                                "Ouvrier": ouvrier,
+                                "Poste": poste_ouvrier,
+                                "Couleur ticket": couleur,
+                                "Numéro paquet": numero_paquet,
+                                "Quantité": int(quantite)
+                            })
+                            st.success("Production enregistrée.")
+                            st.rerun()
+
+    st.divider()
+    st.subheader("Historique de production")
+
+    if st.session_state.productions:
+        df_prod = pd.DataFrame(st.session_state.productions)
+        st.dataframe(
+            df_prod.sort_index(ascending=False),
+            use_container_width=True,
+            hide_index=True
+        )
+
+        if st.button("🗑️ Effacer tout l'historique de production"):
+            st.session_state.productions = []
+            st.session_state.tickets_utilises = []
+            st.warning("Historique effacé.")
+            st.rerun()
+    else:
+        st.info("Aucune production enregistrée pour le moment.")
+
+
+# =========================================================
+# 4. GESTION DES PANNES
+# =========================================================
+with tab_pannes:
+    st.header("Arrêts et pannes")
+
+    with st.expander("➕ Ajouter un type de panne"):
+        with st.form("ajouter_type_panne", clear_on_submit=True):
+            nouveau_type = st.text_input("Nouveau type de panne")
+            valider_type = st.form_submit_button("Ajouter le type")
+
+            if valider_type:
+                nouveau_type = nouveau_type.strip()
+                if not nouveau_type:
+                    st.error("Saisir le nom du type de panne.")
+                elif any(
+                    x.casefold() == nouveau_type.casefold()
+                    for x in st.session_state.types_pannes
+                ):
+                    st.error("Ce type de panne existe déjà.")
+                else:
+                    st.session_state.types_pannes.append(nouveau_type)
+                    st.success("Type de panne ajouté.")
+                    st.rerun()
+
+    if not st.session_state.modeles:
+        st.warning("Crée d'abord un modèle dans l'onglet Modèles.")
+    else:
+        noms_modeles_panne = [
+            m["Modèle"] for m in st.session_state.modeles
+        ]
+
+        with st.form("form_panne", clear_on_submit=True):
+            modele_panne = st.selectbox(
+                "Modèle concerné",
+                noms_modeles_panne
+            )
+            section_panne = st.selectbox(
+                "Section concernée",
+                SECTIONS,
+                key="section_panne"
+            )
+
+            choix_ouvriers = [
+                "Toute la section"
+            ] + [
+                o["Nom"]
+                for o in st.session_state.ouvriers[section_panne]
+            ]
+
+            ouvrier_panne = st.selectbox(
+                "Ouvrier concerné",
+                choix_ouvriers
+            )
+
+            type_panne = st.selectbox(
+                "Type de panne",
+                st.session_state.types_pannes
+            )
+
+            duree_panne = st.number_input(
+                "Durée de la panne (minutes)",
+                min_value=1,
+                value=10,
+                step=1
+            )
+
+            details_panne = st.text_input("Détails (facultatif)")
+            enregistrer_panne = st.form_submit_button("Enregistrer la panne")
+
+            if enregistrer_panne:
+                st.session_state.pannes.append({
+                    "Date": datetime.now().strftime("%d/%m/%Y %H:%M"),
+                    "Modèle": modele_panne,
+                    "Section": section_panne,
+                    "Ouvrier": ouvrier_panne,
+                    "Type de panne": type_panne,
+                    "Durée (min)": int(duree_panne),
+                    "Détails": details_panne.strip()
+                })
+                st.success("Panne enregistrée.")
+                st.rerun()
+
+    st.divider()
+    st.subheader("Historique des pannes")
+
+    if st.session_state.pannes:
+        st.dataframe(
+            pd.DataFrame(st.session_state.pannes),
+            use_container_width=True,
+            hide_index=True
+        )
+    else:
+        st.info("Aucune panne enregistrée.")
+
+
+# =========================================================
+# 5. RÉSUMÉ ET RENDEMENT
+# =========================================================
+with tab_resume:
+    st.header("Résumé et rendement")
+
+    if not st.session_state.modeles:
+        st.info("Crée un modèle pour consulter son rendement.")
+    else:
+        modele_resume = st.selectbox(
+            "Choisir le modèle à analyser",
+            [m["Modèle"] for m in st.session_state.modeles],
+            key="resume_modele"
+        )
+
+        infos_modele = next(
+            m for m in st.session_state.modeles
+            if m["Modèle"] == modele_resume
+        )
+
+        st.subheader("Rendement par ouvrier")
+
+        lignes = []
+
+        for sec in SECTIONS:
+            for o in st.session_state.ouvriers[sec]:
+                nom_ouvrier = o["Nom"]
+                qte = nombre_produit(modele_resume, sec, nom_ouvrier)
+                panne_min = temps_pannes(
+                    modele_resume, sec, nom_ouvrier
+                )
+                temps_net = heures_travail() - panne_min / 60
+                rend = round(qte / temps_net, 2) if temps_net > 0 else 0
+
+                lignes.append({
+                    "Section": sec,
+                    "Ouvrier": nom_ouvrier,
+                    "Poste": o["Poste"],
+                    "Quantité totale": qte,
+                    "Pannes (min)": panne_min,
+                    "Heures disponibles": round(max(temps_net, 0), 2),
+                    "Rendement (pièces/heure)": rend
+                })
+
+        if lignes:
+            df_rendement = pd.DataFrame(lignes)
+            st.dataframe(
+                df_rendement,
+                use_container_width=True,
+                hide_index=True
+            )
+
+            csv_rendement = df_rendement.to_csv(
+                index=False
+            ).encode("utf-8-sig")
+
+            st.download_button(
+                "⬇️ Télécharger le rendement (CSV)",
+                data=csv_rendement,
+                file_name=f"rendement_{modele_resume}.csv",
+                mime="text/csv"
+            )
+        else:
+            st.warning("Ajoute des ouvriers pour calculer le rendement.")
+
+        st.divider()
+        st.subheader("Avancement du modèle")
+
+        quantite_prevue = infos_modele["Quantité prévue"]
+        avancement_sections = []
+
+        for sec in SECTIONS:
+            total_section = sum(
+                int(p["Quantité"])
+                for p in st.session_state.productions
+                if p["Modèle"] == modele_resume
+                and p["Section"] == sec
+            )
+
+            pourcentage = min(
+                100,
+                round(total_section / quantite_prevue * 100, 1)
+            )
+
+            avancement_sections.append({
+                "Section": sec,
+                "Quantité réalisée": total_section,
+                "Quantité prévue": quantite_prevue,
+                "Avancement (%)": pourcentage
+            })
+
+            st.write(
+                f"**{sec}** — {total_section} / {quantite_prevue} pièces"
+            )
+            st.progress(int(pourcentage))
+
+        if all(
+            ligne["Quantité réalisée"] >= quantite_prevue
+            for ligne in avancement_sections
+        ):
+            st.success(
+                "✅ Modèle terminé dans toutes les sections !"
+            )
+        else:
+            st.info(
+                "Le modèle n'est pas encore terminé dans toutes les sections."
+            )
+
+        st.divider()
+        st.subheader("Alertes")
+
+        alertes = []
+
+        for sec in SECTIONS:
+            for o in st.session_state.ouvriers[sec]:
+                qte = nombre_produit(
+                    modele_resume, sec, o["Nom"]
+                )
+                if qte == 0:
+                    alertes.append(
+                        f"{o['Nom']} — {sec} : aucun rendement enregistré."
+                    )
+
+        if alertes:
+            for alerte in alertes:
+                st.warning("⚠️ " + alerte)
+        else:
+            st.success("Tous les ouvriers ont une production enregistrée.")
+
+        st.divider()
+        st.subheader("Télécharger les données")
+
+        if st.session_state.productions:
+            df_export = pd.DataFrame(st.session_state.productions)
+            st.download_button(
+                "⬇️ Télécharger toutes les productions (CSV)",
+                data=df_export.to_csv(index=False).encode("utf-8-sig"),
+                file_name="productions_atelier.csv",
+                mime="text/csv"
+            )
+
+        if st.session_state.pannes:
+            df_pannes = pd.DataFrame(st.session_state.pannes)
+            st.download_button(
+                "⬇️ Télécharger les pannes (CSV)",
+                data=df_pannes.to_csv(index=False).encode("utf-8-sig"),
+                file_name="pannes_atelier.csv",
+                mime="text/csv"
+            )
 
 st.divider()
-st.caption("Note : le rendement affiché ici correspond aux pièces produites par heure de travail effectif. Pour calculer le rendement en pourcentage, il faut ajouter le temps standard de chaque opération.")
-'''
-path = Path("/mnt/data/app.py")
-print(f"Fichier créé : {path} ({path.stat().st_size} octets)")
+st.caption(
+    "Application de suivi d'atelier — "
+    "Le rendement affiché correspond aux pièces produites par heure disponible."
+)
