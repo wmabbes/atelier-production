@@ -67,13 +67,16 @@ def init_db():
     c.execute(
         "CREATE TABLE IF NOT EXISTS paquets (id INTEGER PRIMARY KEY AUTOINCREMENT, modele TEXT, ticket TEXT, paquet_num INTEGER, quantite INTEGER)"
     )
+    
+    # إضافة قاعدة حماية ضد التكرار مباشرة في جدول الإنتاج (UNIQUE constraint)
     c.execute(
         """CREATE TABLE IF NOT EXISTS production (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     date TEXT, nom TEXT, prenom TEXT, categorie TEXT,
                     sous_categorie TEXT, poste TEXT, heure TEXT,
                     modele TEXT, ticket TEXT, paquet_num INTEGER,
-                    pieces INTEGER, objectif INTEGER
+                    pieces INTEGER, objectif INTEGER,
+                    UNIQUE(nom, prenom, modele, ticket, paquet_num)
                 )"""
     )
     c.execute(
@@ -602,11 +605,10 @@ with tab_prod:
                             help="Entrez le numéro du paquet (ex: 5) ou plusieurs numéros séparés par des virgules (ex: 1, 2, 3)"
                         )
 
-                        # --- جلب وحساب القطع تلقائياً مع التدقيق التام ضد التكرار ---
+                        # --- الفحص والتحقق الصارم من عدم التكرار لكل عمالة ---
                         total_calculated_pieces = 0
                         parsed_paquets = []
                         duplicate_paquets = []
-                        formatted_date_str = selected_date.strftime("%d/%m/%Y")
                         
                         try:
                             parts = paquet_input_str.split(",")
@@ -621,14 +623,14 @@ with tab_prod:
                                     temps_list = [int(p)]
 
                                 for p_num in temps_list:
-                                    # التحقق هل تم تسجيل هذا الباكو مسبقاً لنفس العاملة بغض النظر عن القسم أو اليوم لمنع التكرار المطلق
-                                    already_exists = conn.execute(
+                                    # فحص شامل في قاعدة البيانات لمنع التكرار تماماً لهذه العاملة
+                                    exists = conn.execute(
                                         """SELECT id FROM production 
                                         WHERE nom=? AND prenom=? AND modele=? AND ticket=? AND paquet_num=?""",
                                         (w_selected_obj["Nom"], w_selected_obj["Prénom"], sel_cmd, sel_ticket, p_num)
                                     ).fetchone()
 
-                                    if already_exists:
+                                    if exists:
                                         if p_num not in duplicate_paquets:
                                             duplicate_paquets.append(p_num)
                                     else:
@@ -649,7 +651,7 @@ with tab_prod:
 
                         st.info(f"📦 Nombre de pièces total (Auto): **{total_calculated_pieces} pcs**")
 
-                    # --- حساب المردودية (Rendement & Pourcentage) تلقائياً ---
+                    # --- حساب المردودية (Rendement & Pourcentage) ---
                     obj_val = w_selected_obj["Objectif"]
                     rendement_pct = round((total_calculated_pieces / obj_val) * 100, 1) if obj_val > 0 else 0
 
@@ -668,6 +670,7 @@ with tab_prod:
                         if not parsed_paquets:
                             st.error("⚠️ Veuillez entrer un numéro de paquet valide ou non déjà enregistré !")
                         else:
+                            formatted_date_str = selected_date.strftime("%d/%m/%Y")
                             conn = get_connection()
                             saved_count = 0
                             
@@ -679,20 +682,7 @@ with tab_prod:
                                 
                                 if q_res:
                                     p_qty = q_res[0]
-                                    dup = conn.execute(
-                                        """SELECT id FROM production
-                                        WHERE nom=? AND prenom=?
-                                        AND modele=? AND ticket=? AND paquet_num=?""",
-                                        (
-                                            w_selected_obj["Nom"],
-                                            w_selected_obj["Prénom"],
-                                            sel_cmd,
-                                            sel_ticket,
-                                            p_num,
-                                        ),
-                                    ).fetchone()
-
-                                    if not dup:
+                                    try:
                                         conn.execute(
                                             """INSERT INTO production (date, nom, prenom, categorie, sous_categorie, poste, heure, modele, ticket, paquet_num, pieces, objectif)
                                                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
@@ -712,6 +702,9 @@ with tab_prod:
                                             ),
                                         )
                                         saved_count += 1
+                                    except sqlite3.IntegrityError:
+                                        # حماية إضافية من قاعدة البيانات نفسها تمنع أي تكرار
+                                        pass
 
                             conn.commit()
                             conn.close()
