@@ -599,10 +599,10 @@ with tab_prod:
                             "Numéro(s) de Paquet (ex: 1 ou 1,2,3 ou 1-5)",
                             value="1",
                             key=f"prod_paquet_input_{cat_key}",
-                            help="أدخل رقم الباكو مباشرة (مثال: 5) أو عدة أرقام مفصولة بفواصل (مثال: 1, 2, 3)"
+                            help="Entrez le numéro du paquet (ex: 5) ou plusieurs numéros séparés par des virgules (ex: 1, 2, 3)"
                         )
 
-                        # --- جلب وحساب القطع تلقائياً مع التحقق من عدم تكرار الباكو لنفس العاملة ---
+                        # --- جلب وحساب القطع تلقائياً مع التحقق من عدم تكرار الباكو ---
                         total_calculated_pieces = 0
                         parsed_paquets = []
                         duplicate_paquets = []
@@ -621,7 +621,6 @@ with tab_prod:
                                     temps_list = [int(p)]
 
                                 for p_num in temps_list:
-                                    # التحقق هل تم تسجيلة مسبقاً لهذه العاملة في نفس اليوم
                                     already_exists = conn.execute(
                                         """SELECT id FROM production 
                                         WHERE date=? AND nom=? AND prenom=? AND modele=? AND ticket=? AND paquet_num=? AND sous_categorie=?""",
@@ -644,7 +643,7 @@ with tab_prod:
                             pass
 
                         if duplicate_paquets:
-                            st.warning(f"⚠️ تنبيه: الباكو رقم {duplicate_paquets} تم تسجيله مسبقاً لهذه العاملة اليوم وللنفس القسم/التثبت ولن يتم احتسابه مرتين.")
+                            st.warning(f"⚠️ Attention : Le(s) paquet(s) {duplicate_paquets} a/ont déjà été enregistré(s) pour cette ouvrière aujourd'hui et ne sera/seront pas compté(s) deux fois.")
 
                         st.info(f"📦 Nombre de pièces total (Auto): **{total_calculated_pieces} pcs**")
 
@@ -678,7 +677,6 @@ with tab_prod:
                                 
                                 if q_res:
                                     p_qty = q_res[0]
-                                    # تحقق أخير قبل الإدخال للتأكيد
                                     dup = conn.execute(
                                         """SELECT id FROM production
                                         WHERE date=? AND nom=? AND prenom=?
