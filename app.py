@@ -602,39 +602,50 @@ with tab_prod:
                             help="أدخل رقم الباكو مباشرة (مثال: 5) أو عدة أرقام مفصولة بفواصل (مثال: 1, 2, 3)"
                         )
 
-                        # --- جلب كمية القطع تلقائياً لكل باكو من قاعدة البيانات ---
+                        # --- جلب وحساب القطع تلقائياً مع التحقق من عدم تكرار الباكو لنفس العاملة ---
                         total_calculated_pieces = 0
                         parsed_paquets = []
+                        duplicate_paquets = []
+                        formatted_date_str = selected_date.strftime("%d/%m/%Y")
                         
                         try:
                             parts = paquet_input_str.split(",")
                             conn = get_connection()
                             for p in parts:
                                 p = p.strip()
+                                temps_list = []
                                 if "-" in p:
                                     start, end = map(int, p.split("-"))
-                                    for p_num in range(start, end + 1):
-                                        parsed_paquets.append(p_num)
-                                        res = conn.execute(
-                                            "SELECT quantite FROM paquets WHERE modele=? AND ticket=? AND paquet_num=?",
-                                            (sel_cmd, sel_ticket, p_num)
-                                        ).fetchone()
-                                        if res:
-                                            total_calculated_pieces += res[0]
+                                    temps_list = list(range(start, end + 1))
                                 elif p.isdigit():
-                                    p_num = int(p)
-                                    parsed_paquets.append(p_num)
-                                    res = conn.execute(
-                                        "SELECT quantite FROM paquets WHERE modele=? AND ticket=? AND paquet_num=?",
-                                        (sel_cmd, sel_ticket, p_num)
+                                    temps_list = [int(p)]
+
+                                for p_num in temps_list:
+                                    # التحقق هل تم تسجيلة مسبقاً لهذه العاملة في نفس اليوم
+                                    already_exists = conn.execute(
+                                        """SELECT id FROM production 
+                                        WHERE date=? AND nom=? AND prenom=? AND modele=? AND ticket=? AND paquet_num=? AND sous_categorie=?""",
+                                        (formatted_date_str, w_selected_obj["Nom"], w_selected_obj["Prénom"], sel_cmd, sel_ticket, p_num, sous_cat)
                                     ).fetchone()
-                                    if res:
-                                        total_calculated_pieces += res[0]
+
+                                    if already_exists:
+                                        duplicate_paquets.append(p_num)
+                                    else:
+                                        if p_num not in parsed_paquets:
+                                            parsed_paquets.append(p_num)
+                                            res = conn.execute(
+                                                "SELECT quantite FROM paquets WHERE modele=? AND ticket=? AND paquet_num=?",
+                                                (sel_cmd, sel_ticket, p_num)
+                                            ).fetchone()
+                                            if res:
+                                                total_calculated_pieces += res[0]
                             conn.close()
                         except Exception:
                             pass
 
-                        # عرض الكمية المحسوبة تلقائياً في خانة للقراءة فقط
+                        if duplicate_paquets:
+                            st.warning(f"⚠️ تنبيه: الباكو رقم {duplicate_paquets} تم تسجيله مسبقاً لهذه العاملة اليوم وللنفس القسم/التثبت ولن يتم احتسابه مرتين.")
+
                         st.info(f"📦 Nombre de pièces total (Auto): **{total_calculated_pieces} pcs**")
 
                     # --- حساب المردودية (Rendement & Pourcentage) تلقائياً ---
@@ -654,16 +665,12 @@ with tab_prod:
                         f"💾 Enregistrer ({title})", key=f"btn_save_{cat_key}"
                     ):
                         if not parsed_paquets:
-                            st.error("⚠️ Veuillez entrer un numéro de paquet valide !")
-                        elif total_calculated_pieces == 0:
-                            st.error("⚠️ Les paquets saisis n'existent pas ou n'ont pas de quantité définie dans le modèle !")
+                            st.error("⚠️ Veuillez entrer un numéro de paquet valide ou non déjà enregistré !")
                         else:
-                            formatted_date_str = selected_date.strftime("%d/%m/%Y")
                             conn = get_connection()
-                            
                             saved_count = 0
+                            
                             for p_num in parsed_paquets:
-                                # جلب كمية الباكو الفردية لتخزينها
                                 q_res = conn.execute(
                                     "SELECT quantite FROM paquets WHERE modele=? AND ticket=? AND paquet_num=?",
                                     (sel_cmd, sel_ticket, p_num)
@@ -671,6 +678,7 @@ with tab_prod:
                                 
                                 if q_res:
                                     p_qty = q_res[0]
+                                    # تحقق أخير قبل الإدخال للتأكيد
                                     dup = conn.execute(
                                         """SELECT id FROM production
                                         WHERE date=? AND nom=? AND prenom=?
