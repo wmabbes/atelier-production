@@ -7,13 +7,14 @@ st.set_page_config(
     page_title="Suivi de Production - Atelier Textile", page_icon="🧵", layout="wide"
 )
 
-# --- تصميم عصري مستوحى من النسيج ودرجات الأزرق ---
+# --- تصميم عصري مستوحى من تصاميم الأزياء والنسيج ---
 st.markdown(
     """
     <style>
+    /* خلفية صفحة تسجيل الدخول مع صورة تصاميم أزياء (Fashion Design) بتدرجات الأزرق */
     .login-bg {
         background-image: linear-gradient(rgba(10, 25, 47, 0.75), rgba(15, 32, 67, 0.85)), 
-                    url('https://images.unsplash.com/photo-1584917865442-de89df76afd3?q=80&w=1600&auto=format&fit=crop');
+                          url('https://images.unsplash.com/photo-1558769132-cb1aea458c5e?q=80&w=1600&auto=format&fit=crop');
         background-size: cover;
         background-position: center;
         padding: 40px;
@@ -595,7 +596,6 @@ with tab_prod:
                             else None
                         )
 
-                        # --- التعديل هنا: إدخال أرقام الباكوات بحرية عبر خانة نصية ---
                         paquet_input_str = st.text_input(
                             "Numéro(s) de Paquet (ex: 1 ou 1,2,3 ou 1-5)",
                             value="1",
@@ -613,10 +613,8 @@ with tab_prod:
                     if st.button(
                         f"💾 Enregistrer ({title})", key=f"btn_save_{cat_key}"
                     ):
-                        # تحليل الأرقام المدخلة في خانة النص
                         paquets_to_save = []
                         try:
-                            # دعم الأرقام المفردة أو المفصولة بفواصل
                             parts = paquet_input_str.split(",")
                             for p in parts:
                                 p = p.strip()
@@ -861,4 +859,3 @@ with tab_suivi:
                     ).round(2)
                     st.dataframe(df_grouped, use_container_width=True)
         st.markdown("---")
-
