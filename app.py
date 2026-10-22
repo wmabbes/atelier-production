@@ -132,7 +132,7 @@ def check_password():
                 st.markdown(
                     "<div style='text-align: center;'>", unsafe_allow_html=True
                 )
-                st.markdown("### 🧵 ETC - Atelier Bobine & Confection")
+                st.markdown("### 🧵 ETC ")
                 st.markdown("#### Suivi de Production")
                 st.markdown(
                     "<p style='color: #ffffff; font-size: 13px;'>Gestion des ateliers (Chemise, Jupe, Jean)</p>",
@@ -144,7 +144,7 @@ def check_password():
                     "🔑 Code d'accès :", type="password", key="pwd_input"
                 )
                 if st.button(
-                    "🚀 Valider et Entrer", use_container_width=True
+                    " Valider et Entrer", use_container_width=True
                 ):
                     if pwd == "1234":
                         st.session_state["password_correct"] = True
