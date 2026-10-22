@@ -603,7 +603,7 @@ with tab_prod:
                         tickets_opts = [t[0] for t in tickets_db]
                         sel_ticket = (
                             st.selectbox(
-                                "Ticket / Ticket",
+                                "Ticket",
                                 tickets_opts,
                                 key=f"prod_ticket_{cat_key}",
                             )
