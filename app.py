@@ -7,7 +7,7 @@ st.set_page_config(
     page_title="Suivi de Production - Atelier Textile", page_icon="🧵", layout="wide"
 )
 
-# --- تصميم خلفية مخصصة لخيوط الخياطة (Bobines) مع تنسيق الألوان لتكون واضحة باللون الأبيض ---
+# --- تصميم عصري متكامل للخلفية والقائمة الجانبية بوضوح تام ---
 st.markdown(
     """
     <style>
@@ -17,6 +17,13 @@ st.markdown(
         background-size: cover;
         background-position: center;
         color: #ffffff;
+    }
+    /* جعل القائمة الجانبية داكنة لتظهر الكتابة البيضاء بوضوح */
+    [data-testid="stSidebar"] {
+        background-color: #0b192c !important;
+    }
+    [data-testid="stSidebar"] h1, [data-testid="stSidebar"] h2, [data-testid="stSidebar"] h3, [data-testid="stSidebar"] p, [data-testid="stSidebar"] label, [data-testid="stSidebar"] span {
+        color: #ffffff !important;
     }
     h1, h2, h3, h4, h5, h6, p, label, .stMarkdown {
         color: #ffffff !important;
@@ -132,14 +139,19 @@ def check_password():
                 st.markdown(
                     "<div style='text-align: center;'>", unsafe_allow_html=True
                 )
-                st.markdown("### 🧵 ETC - Suivi de Production")
+                st.markdown("### 🧵 ETC - Atelier Bobine & Confection")
+                st.markdown("#### Suivi de Production")
+                st.markdown(
+                    "<p style='color: #ffffff; font-size: 13px;'>Gestion des ateliers (Chemise, Jupe, Jean)</p>",
+                    unsafe_allow_html=True,
+                )
                 st.markdown("</div>", unsafe_allow_html=True)
 
                 pwd = st.text_input(
                     "🔑 Code d'accès :", type="password", key="pwd_input"
                 )
                 if st.button(
-                    " Valider et Entrer", use_container_width=True
+                    "🚀 Valider et Entrer", use_container_width=True
                 ):
                     if pwd == "1234":
                         st.session_state["password_correct"] = True
@@ -154,7 +166,7 @@ if not check_password():
     st.stop()
 
 st.markdown(
-    "<h1 style='color: #ffffff; margin-bottom: 0px;'>🧵 Suivi de Production </h1>",
+    "<h1 style='color: #ffffff; margin-bottom: 0px;'>🧵 Suivi de Production - ETC Atelier</h1>",
     unsafe_allow_html=True,
 )
 st.markdown(
@@ -180,15 +192,6 @@ modeles_list = [
 conn.close()
 
 # --- SIDEBAR ---
-<style>
-    .stApp {
-        background-image: linear-gradient(rgba(10, 25, 47, 0.85), rgba(15, 32, 67, 0.92)), 
-                          url('https://images.unsplash.com/photo-1584226761491-49cf19463999?q=80&w=1920&auto=format&fit=crop');
-        background-size: cover;
-        background-position: center;
-        color: #ffffff;
-    }
-</style>
 st.sidebar.header("👷‍♀️ Paramètres & Ouvrières")
 
 st.sidebar.subheader("➕ Ajouter un Poste")
