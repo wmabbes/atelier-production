@@ -17,7 +17,7 @@ st.markdown(
         left: 0;
         width: 100vw;
         height: 100vh;
-        background-image: linear-gradient(rgba(10, 25, 47, 0.82), rgba(15, 32, 67, 0.90)), 
+        background-image: linear-gradient(rgba(10, 25, 47, 0.85), rgba(15, 32, 67, 0.92)), 
                           url('https://images.unsplash.com/photo-1558769132-cb1aea458c5e?q=80&w=1920&auto=format&fit=crop');
         background-size: cover;
         background-position: center;
@@ -34,11 +34,11 @@ st.markdown(
         backdrop-filter: blur(12px);
         -webkit-backdrop-filter: blur(12px);
         border: 1px solid rgba(255, 255, 255, 0.2);
-        padding: 30px;
+        padding: 35px;
         border-radius: 20px;
         box-shadow: 0 15px 35px rgba(0, 0, 0, 0.5);
         text-align: center;
-        max-width: 420px;
+        max-width: 450px;
         width: 100%;
     }
     .atelier-badge {
@@ -59,16 +59,17 @@ st.markdown(
         color: #1b3b6f;
     }
     .stButton>button {
-        background-color: #1b3b6f;
-        color: white;
+        background-color: #ffb703;
+        color: #000;
         border-radius: 8px;
         border: none;
         font-weight: bold;
         width: 100%;
-        padding: 10px;
+        padding: 12px;
+        margin-top: 10px;
     }
     .stButton>button:hover {
-        background-color: #122647;
+        background-color: #fb8500;
         color: white;
     }
     </style>
@@ -167,14 +168,14 @@ def check_password():
         st.session_state["password_correct"] = False
 
     if not st.session_state["password_correct"]:
-        # واجهة تسجيل الدخول مع تعديل شعار ETC وإزالة المربعات السوداء
+        # واجهة تسجيل الدخول المنظمة بالكامل
         st.markdown(
             """
             <div class="login-container">
                 <div class="login-card">
-                    <div class="atelier-badge">🧵 ETC - Atelier de Confection</div>
-                    <h2 style="color: white; margin-bottom: 5px; font-size: 22px;">Suivi de Production</h2>
-                    <p style="color: #cbd5e1; font-size: 13px; margin-bottom: 15px;">
+                    <div class="atelier-badge">🧵 ETC</div>
+                    <h2 style="color: white; margin-bottom: 5px; font-size: 24px;">Suivi de Production</h2>
+                    <p style="color: #cbd5e1; font-size: 13px; margin-bottom: 20px;">
                         Gestion des ateliers (Pantalon, Chemise, Jupe, Jean)
                     </p>
                 </div>
@@ -183,11 +184,11 @@ def check_password():
             unsafe_allow_html=True,
         )
 
-        # حاوية إدخال كلمة المرور وزر الدخول ليظهروا بوضوح فوق البطاقة
-        col1, col2, col3 = st.columns([1, 1.3, 1])
+        # مكان خانة كلمة المرور وزر الدخول الواضح داخل المنتصف
+        col1, col2, col3 = st.columns([1, 1.2, 1])
         with col2:
             st.markdown(
-                "<div style='height: 40vh;'></div>", unsafe_allow_html=True
+                "<div style='height: 42vh;'></div>", unsafe_allow_html=True
             )
             pwd = st.text_input(
                 "🔑 Code d'accès :", type="password", key="pwd_input"
@@ -206,7 +207,7 @@ if not check_password():
     st.stop()
 
 st.markdown(
-    "<h1 style='color: #1b3b6f; margin-bottom: 0px;'>🧵 Suivi de Production - Atelier</h1>",
+    "<h1 style='color: #1b3b6f; margin-bottom: 0px;'>🧵 Suivi de Production - ETC Atelier</h1>",
     unsafe_allow_html=True,
 )
 st.markdown(
