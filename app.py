@@ -7,7 +7,7 @@ st.set_page_config(
     page_title="Suivi de Production - Atelier Textile", page_icon="🧵", layout="wide"
 )
 
-# --- تصميم عصري متكامل لصفحة الدخول ---
+# --- تصميم عصري متكامل لصفحة الدخول (توسيط كامل داخل البطاقة) ---
 st.markdown(
     """
     <style>
@@ -26,51 +26,13 @@ st.markdown(
         justify-content: center;
         align-items: center;
         z-index: 999999;
-        color: white;
         padding: 20px;
-    }
-    .login-card {
-        background: rgba(255, 255, 255, 0.1);
-        backdrop-filter: blur(12px);
-        -webkit-backdrop-filter: blur(12px);
-        border: 1px solid rgba(255, 255, 255, 0.2);
-        padding: 35px;
-        border-radius: 20px;
-        box-shadow: 0 15px 35px rgba(0, 0, 0, 0.5);
-        text-align: center;
-        max-width: 450px;
-        width: 100%;
-    }
-    .atelier-badge {
-        display: inline-block;
-        background: #ffb703;
-        color: #000;
-        padding: 6px 16px;
-        border-radius: 20px;
-        font-size: 13px;
-        font-weight: bold;
-        margin-bottom: 15px;
-        text-transform: uppercase;
     }
     .stApp {
         background-color: #f4f7f6;
     }
     h1, h2, h3 {
         color: #1b3b6f;
-    }
-    .stButton>button {
-        background-color: #ffb703;
-        color: #000;
-        border-radius: 8px;
-        border: none;
-        font-weight: bold;
-        width: 100%;
-        padding: 12px;
-        margin-top: 10px;
-    }
-    .stButton>button:hover {
-        background-color: #fb8500;
-        color: white;
     }
     </style>
 """,
@@ -168,37 +130,36 @@ def check_password():
         st.session_state["password_correct"] = False
 
     if not st.session_state["password_correct"]:
-        # واجهة تسجيل الدخول المنظمة بالكامل
-        st.markdown(
-            """
-            <div class="login-container">
-                <div class="login-card">
-                    <div class="atelier-badge">🧵 ETC</div>
-                    <h2 style="color: white; margin-bottom: 5px; font-size: 24px;">Suivi de Production</h2>
-                    <p style="color: #cbd5e1; font-size: 13px; margin-bottom: 20px;">
-                        Gestion des ateliers (Pantalon, Chemise, Jupe, Jean)
-                    </p>
-                </div>
-            </div>
-        """,
-            unsafe_allow_html=True,
-        )
+        # استخدام حاوية Streamlit الرسمية لضمان ظهور عناصر الإدخال وزر الدخول بداخل البطاقة تماماً
+        st.markdown('<div class="login-container">', unsafe_allow_html=True)
 
-        # مكان خانة كلمة المرور وزر الدخول الواضح داخل المنتصف
         col1, col2, col3 = st.columns([1, 1.2, 1])
         with col2:
-            st.markdown(
-                "<div style='height: 42vh;'></div>", unsafe_allow_html=True
-            )
-            pwd = st.text_input(
-                "🔑 Code d'accès :", type="password", key="pwd_input"
-            )
-            if st.button("🚀 Valider et Entrer"):
-                if pwd == "1234":
-                    st.session_state["password_correct"] = True
-                    st.rerun()
-                else:
-                    st.error("❌ Code incorrect !")
+            with st.container(border=True):
+                st.markdown(
+                    "<div style='text-align: center;'>", unsafe_allow_html=True
+                )
+                st.markdown("### 🧵 ETC")
+                st.markdown("#### Suivi de Production")
+                st.markdown(
+                    "<p style='color: gray; font-size: 12px;'>Gestion des ateliers (Pantalon, Chemise, Jupe, Jean)</p>",
+                    unsafe_allow_html=True,
+                )
+                st.markdown("</div>", unsafe_allow_html=True)
+
+                pwd = st.text_input(
+                    "🔑 Code d'accès :", type="password", key="pwd_input"
+                )
+                if st.button(
+                    "🚀 Valider et Entrer", use_container_width=True
+                ):
+                    if pwd == "1234":
+                        st.session_state["password_correct"] = True
+                        st.rerun()
+                    else:
+                        st.error("❌ Code incorrect !")
+
+        st.markdown("</div>", unsafe_allow_html=True)
         return False
     return True
 
