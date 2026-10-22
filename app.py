@@ -132,12 +132,7 @@ def check_password():
                 st.markdown(
                     "<div style='text-align: center;'>", unsafe_allow_html=True
                 )
-                st.markdown("### 🧵 ETC ")
-                st.markdown("#### Suivi de Production")
-                st.markdown(
-                    "<p style='color: #ffffff; font-size: 13px;'>Gestion des ateliers (Chemise, Jupe, Jean)</p>",
-                    unsafe_allow_html=True,
-                )
+                st.markdown("### 🧵 ETC-Suivi de Production")
                 st.markdown("</div>", unsafe_allow_html=True)
 
                 pwd = st.text_input(
