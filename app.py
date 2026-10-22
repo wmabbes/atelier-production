@@ -7,21 +7,51 @@ st.set_page_config(
     page_title="Suivi de Production - Atelier Textile", page_icon="🧵", layout="wide"
 )
 
-# --- تصميم عصري مستوحى من تصاميم الأزياء والنسيج ---
+# --- تصميم عصري متكامل لصفحة الدخول (خلفية خياطة وأزياء تملأ الصفحة بالكامل) ---
 st.markdown(
     """
     <style>
-    .login-bg {
-        background-image: linear-gradient(rgba(10, 25, 47, 0.75), rgba(15, 32, 67, 0.85)), 
-                          url('https://images.unsplash.com/photo-1558769132-cb1aea458c5e?q=80&w=1600&auto=format&fit=crop');
+    /* إخفاء القائمة الجانبية وعلامات التبويب أثناء وجود المستخدم في صفحة الدخول */
+    .login-container {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        background-image: linear-gradient(rgba(10, 25, 47, 0.82), rgba(15, 32, 67, 0.90)), 
+                          url('https://images.unsplash.com/photo-1558769132-cb1aea458c5e?q=80&w=1920&auto=format&fit=crop');
         background-size: cover;
         background-position: center;
-        padding: 40px;
-        border-radius: 15px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        z-index: 999999;
         color: white;
+        padding: 20px;
+    }
+    .login-card {
+        background: rgba(255, 255, 255, 0.1);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        padding: 40px;
+        border-radius: 20px;
+        box-shadow: 0 15px 35px rgba(0, 0, 0, 0.5);
         text-align: center;
-        box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
-        margin-bottom: 20px;
+        max-width: 450px;
+        width: 100%;
+    }
+    .atelier-badge {
+        display: inline-block;
+        background: #ffb703;
+        color: #000;
+        padding: 5px 15px;
+        border-radius: 20px;
+        font-size: 12px;
+        font-weight: bold;
+        margin-bottom: 15px;
+        text-transform: uppercase;
     }
     .stApp {
         background-color: #f4f7f6;
@@ -35,6 +65,8 @@ st.markdown(
         border-radius: 8px;
         border: none;
         font-weight: bold;
+        width: 100%;
+        padding: 10px;
     }
     .stButton>button:hover {
         background-color: #122647;
@@ -45,12 +77,16 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-# --- BASE DE DONNÉES SQLITE ---
+# --- BASE DE DONNÉES SQLITE (Multi-user safe) ---
 DB_NAME = "atelier_production.db"
 
 
+def get_connection():
+    return sqlite3.connect(DB_NAME, timeout=30.0, check_same_thread=False)
+
+
 def init_db():
-    conn = sqlite3.connect(DB_NAME)
+    conn = get_connection()
     c = conn.cursor()
     c.execute(
         "CREATE TABLE IF NOT EXISTS postes (id INTEGER PRIMARY KEY AUTOINCREMENT, nom TEXT UNIQUE)"
@@ -127,36 +163,40 @@ def init_db():
 init_db()
 
 
-def get_connection():
-    return sqlite3.connect(DB_NAME)
-
-
 def check_password():
     if "password_correct" not in st.session_state:
         st.session_state["password_correct"] = False
 
     if not st.session_state["password_correct"]:
+        # واجهة تسجيل الدخول بتصميم كامل الشاشة (Full-Screen Login)
         st.markdown(
             """
-            <div class="login-bg">
-                <h1>🧵 Atelier de Production Textile</h1>
-                <p>Veuillez entrer le code d'accès pour continuer</p>
+            <div class="login-container">
+                <div class="login-card">
+                    <div class="atelier-badge">🧵 Atelier de Confection & Textile</div>
+                    <h1 style="color: white; margin-bottom: 10px; font-size: 26px;">Suivi de Production</h1>
+                    <p style="color: #cbd5e1; font-size: 14px; margin-bottom: 25px;">
+                        Gestion des ateliers (Pantalon, Chemise, Jupe, Jean)
+                    </p>
+                </div>
             </div>
         """,
             unsafe_allow_html=True,
         )
 
-        col1, col2, col3 = st.columns([1, 2, 1])
+        # عناصر الإدخال الخاصة بكلمة المرور لتكون متناسقة فوق الخلفية
+        col1, col2, col3 = st.columns([1, 1.2, 1])
         with col2:
+            st.markdown("<div style='height: 38vh;'></div>", unsafe_allow_html=True)
             pwd = st.text_input(
-                "🔑 Mot de passe :", type="password", key="pwd_input"
+                "🔑 Code d'accès :", type="password", key="pwd_input"
             )
             if st.button("🚀 Valider et Entrer"):
                 if pwd == "1234":
                     st.session_state["password_correct"] = True
                     st.rerun()
                 else:
-                    st.error("❌ Mot de passe incorrect !")
+                    st.error("❌ Code incorrect !")
         return False
     return True
 
@@ -284,586 +324,3 @@ if modeles_list:
                 )
                 conn.commit()
                 st.sidebar.success(f"✅ Paquet ajouté !")
-                st.rerun()
-            conn.close()
-
-st.sidebar.markdown("---")
-st.sidebar.header("🗑️ Supprimer des éléments")
-
-st.sidebar.subheader("👷 Supprimer une ouvrière")
-conn = get_connection()
-ouvrieres_db = conn.execute(
-    "SELECT nom, prenom, categorie FROM workers ORDER BY nom"
-).fetchall()
-conn.close()
-
-if ouvrieres_db:
-    ouvriere_options = [
-        f"{w[0]} {w[1]} - {w[2]}" for w in ouvrieres_db
-    ]
-    ouvriere_choisie = st.sidebar.selectbox(
-        "Choisir l'ouvrière",
-        ouvriere_options,
-        key="del_worker",
-    )
-
-    if st.sidebar.button("🗑️ SUPPRIMER OUVRIÈRE", key="btn_del_worker"):
-        idx = ouvriere_options.index(ouvriere_choisie)
-        w = ouvrieres_db[idx]
-        conn = get_connection()
-        conn.execute(
-            "DELETE FROM workers WHERE nom=? AND prenom=?",
-            (w[0], w[1]),
-        )
-        conn.commit()
-        conn.close()
-        st.sidebar.success("Ouvrière supprimée.")
-        st.rerun()
-
-st.sidebar.markdown("---")
-st.sidebar.subheader("🧵 Supprimer un poste")
-conn = get_connection()
-postes_db = conn.execute(
-    "SELECT nom FROM postes ORDER BY nom"
-).fetchall()
-conn.close()
-
-if postes_db:
-    poste_choisi = st.sidebar.selectbox(
-        "Choisir le poste",
-        [p[0] for p in postes_db],
-        key="del_poste",
-    )
-    if st.sidebar.button("🗑️ SUPPRIMER POSTE", key="btn_del_poste"):
-        conn = get_connection()
-        conn.execute("DELETE FROM postes WHERE nom=?", (poste_choisi,))
-        conn.commit()
-        conn.close()
-        st.sidebar.success("Poste supprimé.")
-        st.rerun()
-else:
-    st.sidebar.info("Aucun poste disponible.")
-
-st.sidebar.subheader("📦 Supprimer un modèle")
-conn = get_connection()
-modeles_db = conn.execute(
-    "SELECT nom FROM modeles ORDER BY nom"
-).fetchall()
-conn.close()
-
-if modeles_db:
-    modele_choisi = st.sidebar.selectbox(
-        "Choisir le modèle",
-        [m[0] for m in modeles_db],
-        key="del_modele",
-    )
-
-    if st.sidebar.button("🗑️ SUPPRIMER MODÈLE", key="btn_del_modele"):
-        conn = get_connection()
-        conn.execute("DELETE FROM paquets WHERE modele=?", (modele_choisi,))
-        conn.execute("DELETE FROM modeles WHERE nom=?", (modele_choisi,))
-        conn.commit()
-        conn.close()
-        st.success("Modèle supprimé.")
-        st.rerun()
-else:
-    st.info("Aucun modèle disponible. Ajoute d'abord un modèle.")
-
-st.sidebar.subheader("⚠️ Supprimer un manque / panne")
-conn = get_connection()
-manques_db = conn.execute(
-    """SELECT id, date, nom, prenom, type_manque, duree
-        FROM manques ORDER BY id DESC"""
-).fetchall()
-conn.close()
-
-if manques_db:
-    manque_options = [
-        f"#{m[0]} | {m[1]} | {m[2]} {m[3]} | {m[4]} | {m[5]}"
-        for m in manques_db
-    ]
-
-    manque_choisi = st.sidebar.selectbox(
-        "Choisir le manque / panne",
-        manque_options,
-        key="del_manque",
-    )
-
-    if st.sidebar.button(
-        "🗑️ SUPPRIMER MANQUE / PANNE",
-        key="btn_del_manque",
-    ):
-        idx = manque_options.index(manque_choisi)
-        manque_id = manques_db[idx][0]
-
-        conn = get_connection()
-        conn.execute("DELETE FROM manques WHERE id=?", (manque_id,))
-        conn.commit()
-        conn.close()
-
-        st.sidebar.success("Manque / panne supprimé.")
-        st.rerun()
-else:
-    st.sidebar.button(
-        "🗑️ SUPPRIMER MANQUE / PANNE",
-        key="btn_del_manque_vide",
-        disabled=True,
-    )
-    st.sidebar.info("Aucun manque / panne enregistré.")
-
-st.sidebar.markdown("---")
-st.sidebar.subheader("🔧 Ajouter une panne")
-conn = get_connection()
-ouvrieres = conn.execute(
-    "SELECT nom, prenom, categorie FROM workers ORDER BY nom"
-).fetchall()
-conn.close()
-
-if ouvrieres:
-    ouvriere_options = [
-        f"{w[0]} {w[1]} - {w[2]}" for w in ouvrieres
-    ]
-
-    ouvriere = st.sidebar.selectbox(
-        "Choisir l'ouvrière",
-        ouvriere_options,
-        key="ajout_panne_ouvriere",
-    )
-
-    date_panne = st.sidebar.date_input(
-        "Date de la panne",
-        key="date_panne",
-    )
-
-    heure_panne = st.sidebar.time_input(
-        "Heure de la panne",
-        key="heure_panne",
-    )
-
-    type_panne = st.sidebar.text_input(
-        "Type de panne",
-        placeholder="Exemple : machine en panne",
-        key="type_panne",
-    )
-
-    duree_panne = st.sidebar.number_input(
-        "Durée (minutes)",
-        min_value=0,
-        step=5,
-        key="duree_panne",
-    )
-
-    remarque_panne = st.sidebar.text_input(
-        "Remarque",
-        key="remarque_panne",
-    )
-
-    if st.sidebar.button("➕ AJOUTER PANNE", key="btn_ajouter_panne"):
-        if not type_panne.strip():
-            st.sidebar.warning("Saisis le type de panne.")
-        else:
-            idx = ouvriere_options.index(ouvriere)
-            w = ouvrieres[idx]
-
-            conn = get_connection()
-            conn.execute(
-                """INSERT INTO manques
-                (date, nom, prenom, categorie, heure,
-                 type_manque, duree, remarque)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
-                (
-                    date_panne.isoformat(),
-                    w[0],
-                    w[1],
-                    w[2],
-                    heure_panne.strftime("%H:%M"),
-                    type_panne.strip(),
-                    duree_panne,
-                    remarque_panne.strip(),
-                ),
-            )
-            conn.commit()
-            conn.close()
-
-            st.sidebar.success("Panne ajoutée avec succès.")
-            st.rerun()
-else:
-    st.sidebar.warning(
-        "Ajoute d'abord une ouvrière dans la liste des ouvrières."
-    )
-
-# --- MAIN PAGE ---
-selected_date = st.date_input("📅 Date du jour", date.today(), format="DD/MM/YYYY")
-st.markdown("---")
-
-tab_prod, tab_manque, tab_suivi = st.tabs(
-    [
-        "⏱️ Saisie de la Production",
-        "⚠️ Enregistrer les manques",
-        "📊 Suivi & Sortie Modèle",
-    ]
-)
-
-tranches_horaires = [
-    "07:30 - 08:30",
-    "08:30 - 09:30",
-    "09:30 - 10:30",
-    "10:30 - 12:00",
-    "13:00 - 14:00",
-    "14:00 - 15:00",
-    "15:00 - 16:00",
-    "16:00 - 17:00",
-]
-
-sections_def = [
-    ("DOS", "dos"),
-    ("DEVANT", "devant"),
-    ("FINITION", "finition"),
-    ("CONTRÔLE", "controle"),
-]
-
-with tab_prod:
-    if not workers:
-        st.error("⚠️ Veuillez ajouter des ouvrières !")
-    elif not modeles_list:
-        st.warning("⚠️ Veuillez ajouter des modèles !")
-    else:
-        sec_tabs = st.tabs(["📋 DOS", "📋 DEVANT", "📋 FINITION", "📋 CONTRÔLE"])
-
-        for idx, (title, cat_key) in enumerate(sections_def):
-            with sec_tabs[idx]:
-                st.markdown(f"### 📍 Section : {title}")
-                cat_workers = [w for w in workers if w["Catégorie"] == cat_key]
-
-                if not cat_workers:
-                    st.warning(f"Aucune ouvrière dans {title}.")
-                else:
-                    worker_opts = [
-                        f"{w['Prénom']} {w['Nom']} (Obj: {w['Objectif']} pcs/h)"
-                        for w in cat_workers
-                    ]
-
-                    col_a, col_b = st.columns(2)
-                    with col_a:
-                        sel_worker_str = st.selectbox(
-                            "Ouvrière", worker_opts, key=f"prod_w_{cat_key}"
-                        )
-                        w_selected_obj = cat_workers[
-                            worker_opts.index(sel_worker_str)
-                        ]
-
-                        sous_cat = "-"
-                        if cat_key == "controle":
-                            sous_cat = st.radio(
-                                "Type de Contrôle :",
-                                ["Contrôle DOS", "Contrôle DEVANT"],
-                                key=f"ctrl_sub_type_{cat_key}",
-                            )
-                            sel_poste = "Contrôle"
-                        else:
-                            sel_poste = st.selectbox(
-                                "Poste Actuel",
-                                postes_list,
-                                key=f"prod_poste_{cat_key}",
-                            )
-
-                        heure = st.selectbox(
-                            "Tranche Horaire",
-                            tranches_horaires,
-                            key=f"prod_h_{cat_key}",
-                        )
-
-                    with col_b:
-                        sel_cmd = st.selectbox(
-                            "Modèle", modeles_list, key=f"prod_cmd_{cat_key}"
-                        )
-
-                        conn = get_connection()
-                        tickets_db = conn.execute(
-                            "SELECT DISTINCT ticket FROM paquets WHERE modele=?",
-                            (sel_cmd,),
-                        ).fetchall()
-                        
-                        tickets_opts = [t[0] for t in tickets_db]
-                        sel_ticket = (
-                            st.selectbox(
-                                "Billet / Ticket",
-                                tickets_opts,
-                                key=f"prod_ticket_{cat_key}",
-                            )
-                            if tickets_opts
-                            else None
-                        )
-
-                        # --- جلب الباكوات المتاحة فقط (الغير مسجلة مسبقاً لهذه العاملة) ---
-                        available_paquets = []
-                        if sel_ticket:
-                            all_p_db = conn.execute(
-                                "SELECT paquet_num, quantite FROM paquets WHERE modele=? AND ticket=? ORDER BY paquet_num",
-                                (sel_cmd, sel_ticket)
-                            ).fetchall()
-
-                            for p_num, p_qte in all_p_db:
-                                # التحقق هل تم تسجيله مسبقاً لهذه العاملة
-                                already_done = conn.execute(
-                                    "SELECT id FROM production WHERE nom=? AND prenom=? AND modele=? AND ticket=? AND paquet_num=?",
-                                    (w_selected_obj["Nom"], w_selected_obj["Prénom"], sel_cmd, sel_ticket, p_num)
-                                ).fetchone()
-                                if not already_done:
-                                    available_paquets.append((p_num, p_qte))
-                        conn.close()
-
-                        selected_paquets_tuples = []
-                        total_calculated_pieces = 0
-
-                        if available_paquets:
-                            # استخدام مربعات اختيار متعددة نظيفة وآمنة تماماً ضد التكرار
-                            st.markdown("#### 📦 Choisir les paquets disponibles :")
-                            for p_num, p_qte in available_paquets:
-                                checked = st.checkbox(
-                                    f"Paquet N° {p_num} ({p_qte} pcs)",
-                                    key=f"chk_p_{cat_key}_{sel_cmd}_{sel_ticket}_{p_num}"
-                                )
-                                if checked:
-                                    selected_paquets_tuples.append((p_num, p_qte))
-                                    total_calculated_pieces += p_qte
-                        else:
-                            st.info("ℹ️ Tous les paquets de ce ticket ont déjà été enregistrés pour cette ouvrière.")
-
-                        st.info(f"📦 Nombre de pièces total (Auto): **{total_calculated_pieces} pcs**")
-
-                    # --- حساب المردودية (Rendement & Pourcentage) ---
-                    obj_val = w_selected_obj["Objectif"]
-                    rendement_pct = round((total_calculated_pieces / obj_val) * 100, 1) if obj_val > 0 else 0
-
-                    st.markdown("---")
-                    m_col1, m_col2, m_col3 = st.columns(3)
-                    with m_col1:
-                        st.metric(label="📦 Total Pièces", value=f"{total_calculated_pieces} pcs")
-                    with m_col2:
-                        st.metric(label="🎯 Objectif Fixe (par heure)", value=f"{obj_val} pcs")
-                    with m_col3:
-                        st.metric(label="⚡ Rendement (Pourcentage)", value=f"{rendement_pct}%")
-
-                    if st.button(
-                        f"💾 Enregistrer ({title})", key=f"btn_save_{cat_key}"
-                    ):
-                        if not selected_paquets_tuples:
-                            st.error("⚠️ Veuillez cocher au moins un paquet valide !")
-                        else:
-                            formatted_date_str = selected_date.strftime("%d/%m/%Y")
-                            conn = get_connection()
-                            saved_count = 0
-                            
-                            for p_num, p_qty in selected_paquets_tuples:
-                                try:
-                                    conn.execute(
-                                        """INSERT INTO production (date, nom, prenom, categorie, sous_categorie, poste, heure, modele, ticket, paquet_num, pieces, objectif)
-                                                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-                                        (
-                                            formatted_date_str,
-                                            w_selected_obj["Nom"],
-                                            w_selected_obj["Prénom"],
-                                            cat_key,
-                                            sous_cat,
-                                            sel_poste,
-                                            heure,
-                                            sel_cmd,
-                                            sel_ticket,
-                                            p_num,
-                                            p_qty,
-                                            w_selected_obj["Objectif"],
-                                        ),
-                                    )
-                                    saved_count += 1
-                                except sqlite3.IntegrityError:
-                                    pass
-
-                            conn.commit()
-                            conn.close()
-                            
-                            if saved_count > 0:
-                                st.success(f"✅ Enregistré avec succès ({saved_count} paquet(s)) ! Total: {total_calculated_pieces} pcs")
-                                st.rerun()
-                            else:
-                                st.error("❌ Erreur : Ces paquets ont déjà été enregistrés pour cette ouvrière !")
-
-with tab_manque:
-    st.subheader("⚠️ Enregistrer les manques / pannes")
-    if workers:
-        worker_opts_m = [
-            f"[{w['Catégorie'].upper()}] {w['Prénom']} {w['Nom']}"
-            for w in workers
-        ]
-        with st.form("form_manque"):
-            sel_worker_m = st.selectbox(
-                "Ouvrière concernée", worker_opts_m, key="manque_w"
-            )
-            w_obj_m = workers[worker_opts_m.index(sel_worker_m)]
-            sel_cat_m = w_obj_m["Catégorie"]
-
-            heure_m = st.selectbox(
-                "Tranche Horaire", tranches_horaires, key="manque_h"
-            )
-            types_manques_avec_panne = list(manques_types)
-
-            if "Panne" not in types_manques_avec_panne:
-                types_manques_avec_panne.append("Panne")
-
-            type_manque = st.selectbox(
-                "Type de Manque",
-                list(manques_types) + (
-                    ["Panne"] if "Panne" not in manques_types else []
-                ),
-                key="manque_type"
-            )
-            duree_panne = st.selectbox(
-                "Durée",
-                [
-                    "30 minutes",
-                    "1 heure",
-                    "1 heure et demi",
-                    "2 heures",
-                    "Plus de 2 heures",
-                ],
-                key="manque_duree",
-            )
-            remarque_m = st.text_input("Remarque", key="manque_rem")
-            if st.form_submit_button("⚠️ Enregistrer l'Arrêt"):
-                formatted_date_str = selected_date.strftime("%d/%m/%Y")
-                conn = get_connection()
-                conn.execute(
-                    """INSERT INTO manques (date, nom, prenom, categorie, heure, type_manque, duree, remarque)
-                                VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
-                    (
-                        formatted_date_str,
-                        w_obj_m["Nom"],
-                        w_obj_m["Prénom"],
-                        sel_cat_m,
-                        heure_m,
-                        type_manque,
-                        duree_panne,
-                        remarque_m,
-                    ),
-                )
-                conn.commit()
-                conn.close()
-                st.success("⚠️ Arrêt enregistré !")
-                st.rerun()
-
-with tab_suivi:
-    st.subheader("📊 Bilan Global & Tableaux par Section")
-
-    conn = get_connection()
-    df_p = pd.read_sql_query("SELECT * FROM production", conn)
-    df_m = pd.read_sql_query("SELECT * FROM manques", conn)
-    conn.close()
-
-    st.markdown("### 📦 Sortie Modèle - Validation Contrôle Final")
-    summary_rows = []
-
-    conn = get_connection()
-    for m_name in modeles_list:
-        target_qty = (
-            conn.execute(
-                "SELECT SUM(quantite) FROM paquets WHERE modele=?", (m_name,)
-            ).fetchone()[0]
-            or 0
-        )
-        validated_dos = (
-            conn.execute(
-                "SELECT SUM(pieces) FROM production WHERE modele=? AND categorie='controle' AND sous_categorie='Contrôle DOS'",
-                (m_name,),
-            ).fetchone()[0]
-            or 0
-        )
-        validated_devant = (
-            conn.execute(
-                "SELECT SUM(pieces) FROM production WHERE modele=? AND categorie='controle' AND sous_categorie='Contrôle DEVANT'",
-                (m_name,),
-            ).fetchone()[0]
-            or 0
-        )
-
-        dates_recorded = conn.execute(
-            "SELECT DISTINCT date FROM production WHERE modele=?", (m_name,)
-        ).fetchall()
-        dates_str = (
-            ", ".join([d[0] for d in dates_recorded])
-            if dates_recorded
-            else "-"
-        )
-
-        is_finished = (
-            validated_dos >= target_qty
-            and validated_devant >= target_qty
-            and target_qty > 0
-        )
-        status = "✅ Sorti (Terminé)" if is_finished else "⏳ En cours..."
-
-        summary_rows.append(
-            {
-                "Date": dates_str,
-                "Modèle": m_name,
-                "Quantité Prévue": target_qty,
-                "Contrôle DOS": validated_dos,
-                "Contrôle DEVANT": validated_devant,
-                "Statut": status,
-            }
-        )
-    conn.close()
-
-    st.dataframe(pd.DataFrame(summary_rows), use_container_width=True)
-    st.markdown("---")
-
-    for title, cat_key in sections_def:
-        st.markdown(f"## 📋 Section : {title}")
-        col_w, col_prod = st.columns([1, 2])
-
-        with col_w:
-            cat_workers = [w for w in workers if w["Catégorie"] == cat_key]
-            if cat_workers:
-                st.dataframe(
-                    pd.DataFrame(cat_workers)[["Prénom", "Nom", "Objectif"]],
-                    use_container_width=True,
-                )
-
-        with col_prod:
-            if not df_p.empty:
-                df_cat = df_p[df_p["categorie"] == cat_key]
-                if not df_cat.empty:
-                    df_grouped = (
-                        df_cat.groupby(
-                            [
-                                "date",
-                                "modele",
-                                "nom",
-                                "prenom",
-                                "sous_categorie",
-                                "poste",
-                                "heure",
-                                "objectif",
-                            ],
-                            as_index=False,
-                        )
-                        .agg({"pieces": "sum"})
-                        .rename(
-                            columns={
-                                "pieces": "Total Pièces",
-                                "date": "Date Record",
-                                "modele": "Modèle",
-                                "nom": "Nom",
-                                "prenom": "Prénom",
-                                "sous_categorie": "Sous_Catégorie",
-                                "poste": "Poste",
-                                "heure": "Heure",
-                                "objectif": "Objectif/Heure",
-                            }
-                        )
-                    )
-                    df_grouped["Rendement (%)"] = (
-                        (df_grouped["Total Pièces"] / df_grouped["Objectif/Heure"])
-                        * 100
-                    ).round(2)
-                    st.dataframe(df_grouped, use_container_width=True)
-        st.markdown("---")
