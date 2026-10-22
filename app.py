@@ -7,13 +7,13 @@ st.set_page_config(
     page_title="Suivi de Production - Atelier Textile", page_icon="🧵", layout="wide"
 )
 
-# --- تصميم خلفية الشاشة والبطاقة بشكل آمن 100% ---
+# --- تصميم خلفية مخصصة للجينز والملابس ---
 st.markdown(
     """
     <style>
     .stApp {
-        background-image: linear-gradient(rgba(10, 25, 47, 0.85), rgba(15, 32, 67, 0.92)), 
-                          url('https://unsplash.com/fr/photos/vue-detaillee-dune-couturiere-coudre-des-vetements-sur-une-machine-a-coudre-en-usine-WXOuwYcfNAc');
+        background-image: linear-gradient(rgba(10, 25, 47, 0.82), rgba(15, 32, 67, 0.90)), 
+                          url('https://images.unsplash.com/photo-1542272604-787c3835535d?q=80&w=1920&auto=format&fit=crop');
         background-size: cover;
         background-position: center;
     }
@@ -116,8 +116,7 @@ def check_password():
         st.session_state["password_correct"] = False
 
     if not st.session_state["password_correct"]:
-        # مسافة رأسية لتوسيط شاشة الدخول بشكل أنيق
-        st.markdown("<div style='height: 15vh;'></div>", unsafe_allow_html=True)
+        st.markdown("<div style='height: 12vh;'></div>", unsafe_allow_html=True)
 
         col1, col2, col3 = st.columns([1, 1.2, 1])
         with col2:
@@ -125,7 +124,7 @@ def check_password():
                 st.markdown(
                     "<div style='text-align: center;'>", unsafe_allow_html=True
                 )
-                st.markdown("### 🧵 ETC")
+                st.markdown("### 👖 ETC - Atelier Denim & Jean")
                 st.markdown("#### Suivi de Production")
                 st.markdown(
                     "<p style='color: #cbd5e1; font-size: 13px;'>Gestion des ateliers (Pantalon, Chemise, Jupe, Jean)</p>",
@@ -152,7 +151,7 @@ if not check_password():
     st.stop()
 
 st.markdown(
-    "<h1 style='color: #ffffff; margin-bottom: 0px;'>🧵 Suivi de Production - ETC Atelier</h1>",
+    "<h1 style='color: #ffffff; margin-bottom: 0px;'>👖 Suivi de Production - ETC Atelier Jean</h1>",
     unsafe_allow_html=True,
 )
 st.markdown(
