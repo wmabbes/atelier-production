@@ -7,18 +7,26 @@ st.set_page_config(
     page_title="Suivi de Production - Atelier Textile", page_icon="🧵", layout="wide"
 )
 
-# --- تصميم خلفية مخصصة للجينز والملابس ---
+# --- تصميم خلفية مخصصة لخيوط الخياطة (Bobines) مع تنسيق الألوان لتكون واضحة باللون الأبيض ---
 st.markdown(
     """
     <style>
     .stApp {
-        background-image: linear-gradient(rgba(10, 25, 47, 0.82), rgba(15, 32, 67, 0.90)), 
-                          url('https://images.unsplash.com/photo-1542272604-787c3835535d?q=80&w=1920&auto=format&fit=crop');
+        background-image: linear-gradient(rgba(10, 25, 47, 0.85), rgba(15, 32, 67, 0.92)), 
+                          url('https://images.unsplash.com/photo-1584226761491-49cf19463999?q=80&w=1920&auto=format&fit=crop');
         background-size: cover;
         background-position: center;
+        color: #ffffff;
     }
-    h1, h2, h3 {
-        color: #1b3b6f;
+    h1, h2, h3, h4, h5, h6, p, label, .stMarkdown {
+        color: #ffffff !important;
+    }
+    .stTab [data-baseweb="tab"] {
+        color: #ffffff !important;
+        font-weight: bold;
+    }
+    .stMetricValue, .stMetricLabel {
+        color: #ffffff !important;
     }
     </style>
 """,
@@ -124,10 +132,10 @@ def check_password():
                 st.markdown(
                     "<div style='text-align: center;'>", unsafe_allow_html=True
                 )
-                st.markdown("### 👖 ETC - Atelier Denim & Jean")
+                st.markdown("### 🧵 ETC - Atelier Bobine & Confection")
                 st.markdown("#### Suivi de Production")
                 st.markdown(
-                    "<p style='color: #cbd5e1; font-size: 13px;'>Gestion des ateliers (Pantalon, Chemise, Jupe, Jean)</p>",
+                    "<p style='color: #ffffff; font-size: 13px;'>Gestion des ateliers (Chemise, Jupe, Jean)</p>",
                     unsafe_allow_html=True,
                 )
                 st.markdown("</div>", unsafe_allow_html=True)
@@ -151,7 +159,7 @@ if not check_password():
     st.stop()
 
 st.markdown(
-    "<h1 style='color: #ffffff; margin-bottom: 0px;'>👖 Suivi de Production - ETC Atelier Jean</h1>",
+    "<h1 style='color: #ffffff; margin-bottom: 0px;'>🧵 Suivi de Production - ETC Atelier</h1>",
     unsafe_allow_html=True,
 )
 st.markdown(
