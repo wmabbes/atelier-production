@@ -132,7 +132,7 @@ def check_password():
                 st.markdown(
                     "<div style='text-align: center;'>", unsafe_allow_html=True
                 )
-                st.markdown("### 🧵 ETC-Suivi de Production")
+                st.markdown("### 🧵 ETC - Suivi de Production")
                 st.markdown("</div>", unsafe_allow_html=True)
 
                 pwd = st.text_input(
@@ -154,7 +154,7 @@ if not check_password():
     st.stop()
 
 st.markdown(
-    "<h1 style='color: #ffffff; margin-bottom: 0px;'>🧵 Suivi de Production - ETC Atelier</h1>",
+    "<h1 style='color: #ffffff; margin-bottom: 0px;'>🧵 Suivi de Production </h1>",
     unsafe_allow_html=True,
 )
 st.markdown(
@@ -180,6 +180,15 @@ modeles_list = [
 conn.close()
 
 # --- SIDEBAR ---
+<style>
+    .stApp {
+        background-image: linear-gradient(rgba(10, 25, 47, 0.85), rgba(15, 32, 67, 0.92)), 
+                          url('https://images.unsplash.com/photo-1584226761491-49cf19463999?q=80&w=1920&auto=format&fit=crop');
+        background-size: cover;
+        background-position: center;
+        color: #ffffff;
+    }
+</style>
 st.sidebar.header("👷‍♀️ Paramètres & Ouvrières")
 
 st.sidebar.subheader("➕ Ajouter un Poste")
