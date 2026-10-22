@@ -13,7 +13,7 @@ st.markdown(
     <style>
     .stApp {
         background-image: linear-gradient(rgba(10, 25, 47, 0.85), rgba(15, 32, 67, 0.92)), 
-                          url('https://unsplash.com/fr/photos/ruban-a-mesurer-blanc-et-ciseaux-gris-qQKv7r1BaRw');
+                          url('https://unsplash.com/fr/photos/vue-detaillee-dune-couturiere-coudre-des-vetements-sur-une-machine-a-coudre-en-usine-WXOuwYcfNAc');
         background-size: cover;
         background-position: center;
     }
