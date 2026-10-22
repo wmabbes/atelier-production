@@ -7,7 +7,7 @@ st.set_page_config(
     page_title="Suivi de Production - Atelier Textile", page_icon="🧵", layout="wide"
 )
 
-# --- تصميم عصري متكامل للخلفية والقائمة الجانبية بوضوح تام ---
+# --- تصميم عصري متكامل مع تحسين ظهور الكتابة داخل الأزرار بوضوح تام ---
 st.markdown(
     """
     <style>
@@ -18,12 +18,25 @@ st.markdown(
         background-position: center;
         color: #ffffff;
     }
-    /* جعل القائمة الجانبية داكنة لتظهر الكتابة البيضاء بوضوح */
+    /* تنسيق القائمة الجانبية لتكون واضحة */
     [data-testid="stSidebar"] {
         background-color: #0b192c !important;
     }
     [data-testid="stSidebar"] h1, [data-testid="stSidebar"] h2, [data-testid="stSidebar"] h3, [data-testid="stSidebar"] p, [data-testid="stSidebar"] label, [data-testid="stSidebar"] span {
         color: #ffffff !important;
+    }
+    /* جعل أزرار الـ Sidebar والتطبيق واضحة بكتابة بيضاء وخلفية مميزة */
+    .stButton>button {
+        background-color: #1b3b6f !important;
+        color: #ffffff !important;
+        border: 1px solid rgba(255, 255, 255, 0.3) !important;
+        border-radius: 8px;
+        font-weight: bold;
+        width: 100%;
+    }
+    .stButton>button:hover {
+        background-color: #ffb703 !important;
+        color: #000000 !important;
     }
     h1, h2, h3, h4, h5, h6, p, label, .stMarkdown {
         color: #ffffff !important;
