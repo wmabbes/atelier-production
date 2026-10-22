@@ -7,29 +7,15 @@ st.set_page_config(
     page_title="Suivi de Production - Atelier Textile", page_icon="🧵", layout="wide"
 )
 
-# --- تصميم عصري متكامل لصفحة الدخول (توسيط كامل داخل البطاقة) ---
+# --- تصميم خلفية الشاشة والبطاقة بشكل آمن 100% ---
 st.markdown(
     """
     <style>
-    .login-container {
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100vw;
-        height: 100vh;
+    .stApp {
         background-image: linear-gradient(rgba(10, 25, 47, 0.85), rgba(15, 32, 67, 0.92)), 
                           url('https://images.unsplash.com/photo-1558769132-cb1aea458c5e?q=80&w=1920&auto=format&fit=crop');
         background-size: cover;
         background-position: center;
-        display: flex;
-        flex-direction: column;
-        justify-content: center;
-        align-items: center;
-        z-index: 999999;
-        padding: 20px;
-    }
-    .stApp {
-        background-color: #f4f7f6;
     }
     h1, h2, h3 {
         color: #1b3b6f;
@@ -130,8 +116,8 @@ def check_password():
         st.session_state["password_correct"] = False
 
     if not st.session_state["password_correct"]:
-        # استخدام حاوية Streamlit الرسمية لضمان ظهور عناصر الإدخال وزر الدخول بداخل البطاقة تماماً
-        st.markdown('<div class="login-container">', unsafe_allow_html=True)
+        # مسافة رأسية لتوسيط شاشة الدخول بشكل أنيق
+        st.markdown("<div style='height: 15vh;'></div>", unsafe_allow_html=True)
 
         col1, col2, col3 = st.columns([1, 1.2, 1])
         with col2:
@@ -142,7 +128,7 @@ def check_password():
                 st.markdown("### 🧵 ETC")
                 st.markdown("#### Suivi de Production")
                 st.markdown(
-                    "<p style='color: gray; font-size: 12px;'>Gestion des ateliers (Pantalon, Chemise, Jupe, Jean)</p>",
+                    "<p style='color: #cbd5e1; font-size: 13px;'>Gestion des ateliers (Pantalon, Chemise, Jupe, Jean)</p>",
                     unsafe_allow_html=True,
                 )
                 st.markdown("</div>", unsafe_allow_html=True)
@@ -158,8 +144,6 @@ def check_password():
                         st.rerun()
                     else:
                         st.error("❌ Code incorrect !")
-
-        st.markdown("</div>", unsafe_allow_html=True)
         return False
     return True
 
@@ -168,11 +152,11 @@ if not check_password():
     st.stop()
 
 st.markdown(
-    "<h1 style='color: #1b3b6f; margin-bottom: 0px;'>🧵 Suivi de Production - ETC Atelier</h1>",
+    "<h1 style='color: #ffffff; margin-bottom: 0px;'>🧵 Suivi de Production - ETC Atelier</h1>",
     unsafe_allow_html=True,
 )
 st.markdown(
-    "<hr style='margin-top: 5px; margin-bottom: 20px; border-top: 2px solid #1b3b6f;'>",
+    "<hr style='margin-top: 5px; margin-bottom: 20px; border-top: 2px solid #ffffff;'>",
     unsafe_allow_html=True,
 )
 
