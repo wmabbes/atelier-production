@@ -13,7 +13,7 @@ st.markdown(
     <style>
     .stApp {
         background-image: linear-gradient(rgba(10, 25, 47, 0.85), rgba(15, 32, 67, 0.92)), 
-                          url('https://images.unsplash.com/photo-1558769132-cb1aea458c5e?q=80&w=1920&auto=format&fit=crop');
+                          url('https://unsplash.com/fr/photos/ruban-a-mesurer-blanc-et-ciseaux-gris-qQKv7r1BaRw');
         background-size: cover;
         background-position: center;
     }
