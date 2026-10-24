@@ -253,7 +253,6 @@ w_prenom = st.sidebar.text_input("Prénom", key="w_prenom_in")
 w_cat = st.sidebar.selectbox(
     "Section", ["dos", "devant", "finition", "controle"], key="w_cat_in"
 )
-# يتم احتساب الهدف تلقائياً بناءً على الوقت بالثواني
 w_obj = int(obj_pratique)
 st.sidebar.markdown(f"🎯 Objectif calculé : **{w_obj} pcs/h** (basé sur {temps_sec_input}s)")
 
@@ -789,25 +788,18 @@ with tab_manque:
 with tab_suivi:
     st.subheader("📊 Bilan Global, Sortie Modèle & Suivi des Pannes")
 
-    # --- تصدير المعطيات نظيفة إلى Excel بدون Modèle و Ticket في تقرير العاملات ---
+    # --- تصدير المعطيات نظيفة إلى CSV (يعمل مباشرة بدون أخطاء مكتبات) ---
     conn = get_connection()
     df_export_p = pd.read_sql_query("SELECT date, nom, prenom, categorie, poste, heure, pieces, objectif FROM production", conn)
-    df_export_m = pd.read_sql_query("SELECT * FROM manques", conn)
-    df_export_w = pd.read_sql_query("SELECT nom, prenom, categorie, objectif, temps_secondes FROM workers", conn)
     conn.close()
 
-    output = io.BytesIO()
-    with pd.ExcelWriter(output, engine='openpyxl') as writer:
-        df_export_p.to_excel(writer, sheet_name='Production_Ouvrieres', index=False)
-        df_export_m.to_excel(writer, sheet_name='Pannes_Arrêts', index=False)
-        df_export_w.to_excel(writer, sheet_name='Liste_Workers', index=False)
-    excel_data = output.getvalue()
+    csv_data = df_export_p.to_csv(index=False).encode('utf-8')
 
     st.download_button(
-        label="📥 Télécharger le Rapport Complet (Excel - Sans Modèle/Ticket)",
-        data=excel_data,
-        file_name=f"Rapport_Atelier_ETC_{date.today().strftime('%d_%m_%Y')}.xlsx",
-        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        label="📥 Télécharger le Rapport de Production (CSV / Excel)",
+        data=csv_data,
+        file_name=f"Rapport_Production_{date.today().strftime('%d_%m_%Y')}.csv",
+        mime="text/csv",
         use_container_width=True
     )
     st.markdown("---")
