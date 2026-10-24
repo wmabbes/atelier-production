@@ -1,13 +1,14 @@
 from datetime import date
+import io
 import sqlite3
 import pandas as pd
 import streamlit as st
 
 st.set_page_config(
-    page_title="Suivi de Production - ETC Atelier", page_icon="🧵", layout="wide"
+    page_title="Suivi de Production - Atelier Textile", page_icon="🧵", layout="wide"
 )
 
-# --- تصميم عصري متكامل مع ضمان وضوح الكتابة داخل جميع خانات الإدخال والأزرار ---
+# --- تصميم واجهة التطبيق مع وضوح تام لكل الكتابات ---
 st.markdown(
     """
     <style>
@@ -18,14 +19,12 @@ st.markdown(
         background-position: center;
         color: #ffffff;
     }
-    /* القائمة الجانبية */
     [data-testid="stSidebar"] {
         background-color: #0b192c !important;
     }
     [data-testid="stSidebar"] h1, [data-testid="stSidebar"] h2, [data-testid="stSidebar"] h3, [data-testid="stSidebar"] p, [data-testid="stSidebar"] label, [data-testid="stSidebar"] span {
         color: #ffffff !important;
     }
-    /* ضبط لون الكتابة داخل جميع خانات الإدخال لتصبح سوداء وواضحة تماماً */
     input, textarea, select {
         color: #000000 !important;
         font-weight: bold;
@@ -33,7 +32,6 @@ st.markdown(
     [data-baseweb="select"] span, [data-baseweb="base-input"] input {
         color: #000000 !important;
     }
-    /* الأزرار */
     .stButton>button {
         background-color: #1b3b6f !important;
         color: #ffffff !important;
@@ -215,7 +213,6 @@ conn.close()
 # --- SIDEBAR ---
 st.sidebar.header("👷‍♀️ Paramètres & Ouvrières")
 
-# --- أداة حساب وقت الإنجاز (Calculateur Temps / Gamme) ---
 st.sidebar.subheader("⏱️ Calculateur Temps / Objectif")
 temps_sec_input = st.sidebar.number_input(
     "Temps par pièce (en secondes)", min_value=1.0, value=23.0, step=0.5, key="calc_sec"
@@ -224,14 +221,13 @@ efficacite_pct = st.sidebar.slider(
     "Efficacité estimée (%)", min_value=50, max_value=100, value=85, step=5, key="calc_eff"
 )
 
-# Formules de calcul
 obj_theorique = round(3600 / temps_sec_input) if temps_sec_input > 0 else 0
 obj_pratique = round(obj_theorique * (efficacite_pct / 100))
 
 st.sidebar.info(
-    f"📐 **Formule:**  \n"
-    f"- Obj Théorique = 3600s / {temps_sec_input}s = **{obj_theorique} pcs/h**  \n"
-    f"- Obj Cible ({efficacite_pct}%): **{obj_pratique} pcs/h**"
+    f"📐 **Formule (Gamme):**  \n"
+    f"- 3600s / {temps_sec_input}s = **{obj_theorique} pcs/h**  \n"
+    f"- Cible ({efficacite_pct}%): **{obj_pratique} pcs/h**"
 )
 
 st.sidebar.markdown("---")
@@ -792,6 +788,29 @@ with tab_manque:
 
 with tab_suivi:
     st.subheader("📊 Bilan Global, Sortie Modèle & Suivi des Pannes")
+
+    # --- زر تصدير جميع المعطيات إلى Excel ---
+    conn = get_connection()
+    df_export_p = pd.read_sql_query("SELECT * FROM production", conn)
+    df_export_m = pd.read_sql_query("SELECT * FROM manques", conn)
+    df_export_w = pd.read_sql_query("SELECT * FROM workers", conn)
+    conn.close()
+
+    output = io.BytesIO()
+    with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+        df_export_p.to_excel(writer, sheet_name='Production', index=False)
+        df_export_m.to_excel(writer, sheet_name='Pannes_Arrêts', index=False)
+        df_export_w.to_excel(writer, sheet_name='Ouvrieres', index=False)
+    excel_data = output.getvalue()
+
+    st.download_button(
+        label="📥 Télécharger le Rapport Complet (Excel)",
+        data=excel_data,
+        file_name=f"Rapport_Atelier_ETC_{date.today().strftime('%d_%m_%Y')}.xlsx",
+        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        use_container_width=True
+    )
+    st.markdown("---")
 
     conn = get_connection()
     df_p = pd.read_sql_query("SELECT * FROM production", conn)
