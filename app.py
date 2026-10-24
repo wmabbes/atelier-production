@@ -8,7 +8,7 @@ st.set_page_config(
     page_title="Suivi de Production - Atelier Textile", page_icon="🧵", layout="wide"
 )
 
-# --- تصميم واجهة التطبيق مع وضوح تام لكل الكتابات ---
+# --- تصميم عصري متكامل مع ضمان وضوح الكتابة ودقة الألوان ---
 st.markdown(
     """
     <style>
@@ -128,10 +128,10 @@ def init_db():
     c.execute("SELECT COUNT(*) FROM workers")
     if c.fetchone()[0] == 0:
         default_w = [
-            ("Ben Salah", "Mariem", "dos", 50, 23.0),
-            ("TRABELSI", "Sarra", "devant", 60, 20.0),
-            ("GHARBI", "Fatma", "finition", 80, 15.0),
-            ("KHELIFA", "Amani", "controle", 100, 10.0),
+            ("Ben Salah", "Mariem", "dos", 125, 23.0),
+            ("TRABELSI", "Sarra", "devant", 140, 20.0),
+            ("GHARBI", "Fatma", "finition", 180, 15.0),
+            ("KHELIFA", "Amani", "controle", 200, 10.0),
         ]
         c.executemany(
             "INSERT INTO workers (nom, prenom, categorie, objectif, temps_secondes) VALUES (?, ?, ?, ?, ?)",
@@ -161,7 +161,7 @@ def check_password():
                 st.markdown("### 🧵 ETC - Atelier Bobine & Confection")
                 st.markdown("#### Suivi de Production")
                 st.markdown(
-                    "<p style='color: #ffffff; font-size: 13px;'>Gestion des ateliers (Chemise, Jupe, Jean)</p>",
+                    "<p style='color: #ffffff; font-size: 13px;'>Gestion des ateliers</p>",
                     unsafe_allow_html=True,
                 )
                 st.markdown("</div>", unsafe_allow_html=True)
@@ -199,10 +199,10 @@ manques_types = [
     row[0] for row in conn.execute("SELECT nom FROM manques_types").fetchall()
 ]
 workers_db = conn.execute(
-    "SELECT nom, prenom, categorie, objectif FROM workers"
+    "SELECT nom, prenom, categorie, objectif, temps_secondes FROM workers"
 ).fetchall()
 workers = [
-    {"Nom": w[0], "Prénom": w[1], "Catégorie": w[2], "Objectif": w[3]}
+    {"Nom": w[0], "Prénom": w[1], "Catégorie": w[2], "Objectif": w[3], "Temps": w[4] or 23.0}
     for w in workers_db
 ]
 modeles_list = [
@@ -225,9 +225,9 @@ obj_theorique = round(3600 / temps_sec_input) if temps_sec_input > 0 else 0
 obj_pratique = round(obj_theorique * (efficacite_pct / 100))
 
 st.sidebar.info(
-    f"📐 **Formule (Gamme):**  \n"
+    f"📐 **Formule:**  \n"
     f"- 3600s / {temps_sec_input}s = **{obj_theorique} pcs/h**  \n"
-    f"- Cible ({efficacite_pct}%): **{obj_pratique} pcs/h**"
+    f"- Objectif Cible ({efficacite_pct}%): **{obj_pratique} pcs/h**"
 )
 
 st.sidebar.markdown("---")
@@ -253,9 +253,9 @@ w_prenom = st.sidebar.text_input("Prénom", key="w_prenom_in")
 w_cat = st.sidebar.selectbox(
     "Section", ["dos", "devant", "finition", "controle"], key="w_cat_in"
 )
-w_obj = st.sidebar.number_input(
-    "Objectif fixe/heure", min_value=1, value=int(obj_pratique), key="w_obj_in"
-)
+# يتم احتساب الهدف تلقائياً بناءً على الوقت بالثواني
+w_obj = int(obj_pratique)
+st.sidebar.markdown(f"🎯 Objectif calculé : **{w_obj} pcs/h** (basé sur {temps_sec_input}s)")
 
 if st.sidebar.button("➕ Ajouter l'ouvrière"):
     clean_nom = w_nom.strip()
@@ -578,7 +578,7 @@ with tab_prod:
                     st.warning(f"Aucune ouvrière dans {title}.")
                 else:
                     worker_opts = [
-                        f"{w['Prénom']} {w['Nom']} (Obj: {w['Objectif']} pcs/h)"
+                        f"{w['Prénom']} {w['Nom']} (Obj: {w['Objectif']} pcs/h | {w['Temps']}s)"
                         for w in cat_workers
                     ]
 
@@ -789,22 +789,22 @@ with tab_manque:
 with tab_suivi:
     st.subheader("📊 Bilan Global, Sortie Modèle & Suivi des Pannes")
 
-    # --- زر تصدير جميع المعطيات إلى Excel ---
+    # --- تصدير المعطيات نظيفة إلى Excel بدون Modèle و Ticket في تقرير العاملات ---
     conn = get_connection()
-    df_export_p = pd.read_sql_query("SELECT * FROM production", conn)
+    df_export_p = pd.read_sql_query("SELECT date, nom, prenom, categorie, poste, heure, pieces, objectif FROM production", conn)
     df_export_m = pd.read_sql_query("SELECT * FROM manques", conn)
-    df_export_w = pd.read_sql_query("SELECT * FROM workers", conn)
+    df_export_w = pd.read_sql_query("SELECT nom, prenom, categorie, objectif, temps_secondes FROM workers", conn)
     conn.close()
 
     output = io.BytesIO()
-    with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
-        df_export_p.to_excel(writer, sheet_name='Production', index=False)
+    with pd.ExcelWriter(output, engine='openpyxl') as writer:
+        df_export_p.to_excel(writer, sheet_name='Production_Ouvrieres', index=False)
         df_export_m.to_excel(writer, sheet_name='Pannes_Arrêts', index=False)
-        df_export_w.to_excel(writer, sheet_name='Ouvrieres', index=False)
+        df_export_w.to_excel(writer, sheet_name='Liste_Workers', index=False)
     excel_data = output.getvalue()
 
     st.download_button(
-        label="📥 Télécharger le Rapport Complet (Excel)",
+        label="📥 Télécharger le Rapport Complet (Excel - Sans Modèle/Ticket)",
         data=excel_data,
         file_name=f"Rapport_Atelier_ETC_{date.today().strftime('%d_%m_%Y')}.xlsx",
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -902,7 +902,7 @@ with tab_suivi:
             cat_workers = [w for w in workers if w["Catégorie"] == cat_key]
             if cat_workers:
                 st.dataframe(
-                    pd.DataFrame(cat_workers)[["Prénom", "Nom", "Objectif"]],
+                    pd.DataFrame(cat_workers)[["Prénom", "Nom", "Objectif", "Temps"]],
                     use_container_width=True,
                 )
 
@@ -914,10 +914,8 @@ with tab_suivi:
                         df_cat.groupby(
                             [
                                 "date",
-                                "modele",
                                 "nom",
                                 "prenom",
-                                "sous_categorie",
                                 "poste",
                                 "heure",
                                 "objectif",
@@ -929,10 +927,8 @@ with tab_suivi:
                             columns={
                                 "pieces": "Total Pièces",
                                 "date": "Date Record",
-                                "modele": "Modèle",
                                 "nom": "Nom",
                                 "prenom": "Prénom",
-                                "sous_categorie": "Sous_Catégorie",
                                 "poste": "Poste",
                                 "heure": "Heure",
                                 "objectif": "Objectif/Heure",
