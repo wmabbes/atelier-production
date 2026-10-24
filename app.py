@@ -4,10 +4,10 @@ import pandas as pd
 import streamlit as st
 
 st.set_page_config(
-    page_title="Suivi de Production - Atelier Textile", page_icon="🧵", layout="wide"
+    page_title="Suivi de Production - ETC Atelier", page_icon="🧵", layout="wide"
 )
 
-# --- تصميم عصري متكامل مع ضبط لون الكتابة داخل خانات الإدخال لتكون واضحة 100% ---
+# --- تصميم عصري متكامل مع ضمان وضوح الكتابة داخل جميع خانات الإدخال والأزرار ---
 st.markdown(
     """
     <style>
@@ -28,6 +28,7 @@ st.markdown(
     /* ضبط لون الكتابة داخل جميع خانات الإدخال لتصبح سوداء وواضحة تماماً */
     input, textarea, select {
         color: #000000 !important;
+        font-weight: bold;
     }
     [data-baseweb="select"] span, [data-baseweb="base-input"] input {
         color: #000000 !important;
@@ -78,7 +79,7 @@ def init_db():
         "CREATE TABLE IF NOT EXISTS manques_types (id INTEGER PRIMARY KEY AUTOINCREMENT, nom TEXT UNIQUE)"
     )
     c.execute(
-        "CREATE TABLE IF NOT EXISTS workers (id INTEGER PRIMARY KEY AUTOINCREMENT, nom TEXT, prenom TEXT, categorie TEXT, objectif INTEGER, UNIQUE(nom, prenom))"
+        "CREATE TABLE IF NOT EXISTS workers (id INTEGER PRIMARY KEY AUTOINCREMENT, nom TEXT, prenom TEXT, categorie TEXT, objectif INTEGER, temps_secondes REAL, UNIQUE(nom, prenom))"
     )
     c.execute(
         "CREATE TABLE IF NOT EXISTS modeles (id INTEGER PRIMARY KEY AUTOINCREMENT, nom TEXT UNIQUE)"
@@ -129,13 +130,13 @@ def init_db():
     c.execute("SELECT COUNT(*) FROM workers")
     if c.fetchone()[0] == 0:
         default_w = [
-            ("Ben Salah", "Mariem", "dos", 50),
-            ("TRABELSI", "Sarra", "devant", 60),
-            ("GHARBI", "Fatma", "finition", 80),
-            ("KHELIFA", "Amani", "controle", 100),
+            ("Ben Salah", "Mariem", "dos", 50, 23.0),
+            ("TRABELSI", "Sarra", "devant", 60, 20.0),
+            ("GHARBI", "Fatma", "finition", 80, 15.0),
+            ("KHELIFA", "Amani", "controle", 100, 10.0),
         ]
         c.executemany(
-            "INSERT INTO workers (nom, prenom, categorie, objectif) VALUES (?, ?, ?, ?)",
+            "INSERT INTO workers (nom, prenom, categorie, objectif, temps_secondes) VALUES (?, ?, ?, ?, ?)",
             default_w,
         )
 
@@ -159,14 +160,19 @@ def check_password():
                 st.markdown(
                     "<div style='text-align: center;'>", unsafe_allow_html=True
                 )
-                st.markdown("### 🧵 ETC - Suivi de Production")
+                st.markdown("### 🧵 ETC - Atelier Bobine & Confection")
+                st.markdown("#### Suivi de Production")
+                st.markdown(
+                    "<p style='color: #ffffff; font-size: 13px;'>Gestion des ateliers (Chemise, Jupe, Jean)</p>",
+                    unsafe_allow_html=True,
+                )
                 st.markdown("</div>", unsafe_allow_html=True)
 
                 pwd = st.text_input(
                     "🔑 Code d'accès :", type="password", key="pwd_input"
                 )
                 if st.button(
-                    " Valider et Entrer", use_container_width=True
+                    "🚀 Valider et Entrer", use_container_width=True
                 ):
                     if pwd == "1234":
                         st.session_state["password_correct"] = True
@@ -181,7 +187,7 @@ if not check_password():
     st.stop()
 
 st.markdown(
-    "<h1 style='color: #ffffff; margin-bottom: 0px;'>🧵 ETC - Suivi de Production  </h1>",
+    "<h1 style='color: #ffffff; margin-bottom: 0px;'>🧵 Suivi de Production - ETC Atelier</h1>",
     unsafe_allow_html=True,
 )
 st.markdown(
@@ -209,6 +215,26 @@ conn.close()
 # --- SIDEBAR ---
 st.sidebar.header("👷‍♀️ Paramètres & Ouvrières")
 
+# --- أداة حساب وقت الإنجاز (Calculateur Temps / Gamme) ---
+st.sidebar.subheader("⏱️ Calculateur Temps / Objectif")
+temps_sec_input = st.sidebar.number_input(
+    "Temps par pièce (en secondes)", min_value=1.0, value=23.0, step=0.5, key="calc_sec"
+)
+efficacite_pct = st.sidebar.slider(
+    "Efficacité estimée (%)", min_value=50, max_value=100, value=85, step=5, key="calc_eff"
+)
+
+# Formules de calcul
+obj_theorique = round(3600 / temps_sec_input) if temps_sec_input > 0 else 0
+obj_pratique = round(obj_theorique * (efficacite_pct / 100))
+
+st.sidebar.info(
+    f"📐 **Formule:**  \n"
+    f"- Obj Théorique = 3600s / {temps_sec_input}s = **{obj_theorique} pcs/h**  \n"
+    f"- Obj Cible ({efficacite_pct}%): **{obj_pratique} pcs/h**"
+)
+
+st.sidebar.markdown("---")
 st.sidebar.subheader("➕ Ajouter un Poste")
 new_poste_name = st.sidebar.text_input("Nom du Poste", key="input_new_poste")
 if st.sidebar.button("➕ Ajouter Poste"):
@@ -232,8 +258,9 @@ w_cat = st.sidebar.selectbox(
     "Section", ["dos", "devant", "finition", "controle"], key="w_cat_in"
 )
 w_obj = st.sidebar.number_input(
-    "Objectif fixe/heure", min_value=1, value=50, key="w_obj_in"
+    "Objectif fixe/heure", min_value=1, value=int(obj_pratique), key="w_obj_in"
 )
+
 if st.sidebar.button("➕ Ajouter l'ouvrière"):
     clean_nom = w_nom.strip()
     clean_prenom = w_prenom.strip()
@@ -241,8 +268,8 @@ if st.sidebar.button("➕ Ajouter l'ouvrière"):
         try:
             conn = get_connection()
             conn.execute(
-                "INSERT INTO workers (nom, prenom, categorie, objectif) VALUES (?, ?, ?, ?)",
-                (clean_nom, clean_prenom, w_cat, w_obj),
+                "INSERT INTO workers (nom, prenom, categorie, objectif, temps_secondes) VALUES (?, ?, ?, ?, ?)",
+                (clean_nom, clean_prenom, w_cat, w_obj, temps_sec_input),
             )
             conn.commit()
             conn.close()
@@ -283,7 +310,7 @@ if modeles_list:
         "Quantité de pièces", min_value=1, value=20, key="p_qte_input"
     )
 
-    if st.sidebar.button("💾 Ajouter  Modèle"):
+    if st.sidebar.button("💾 Ajouter au Modèle"):
         clean_ticket = t_name_in.strip()
         if clean_ticket:
             conn = get_connection()
@@ -337,7 +364,7 @@ if ouvrieres_db:
         st.rerun()
 
 st.sidebar.markdown("---")
-st.sidebar.subheader("🧵 Supprimer poste")
+st.sidebar.subheader("🧵 Supprimer un poste")
 conn = get_connection()
 postes_db = conn.execute(
     "SELECT nom FROM postes ORDER BY nom"
@@ -360,7 +387,7 @@ if postes_db:
 else:
     st.sidebar.info("Aucun poste disponible.")
 
-st.sidebar.subheader("📦 Supprimer modèle")
+st.sidebar.subheader("📦 Supprimer un modèle")
 conn = get_connection()
 modeles_db = conn.execute(
     "SELECT nom FROM modeles ORDER BY nom"
@@ -385,7 +412,7 @@ if modeles_db:
 else:
     st.info("Aucun modèle disponible. Ajoute d'abord un modèle.")
 
-st.sidebar.subheader("⚠️ Supprimer manque / panne")
+st.sidebar.subheader("⚠️ Supprimer un manque / panne")
 conn = get_connection()
 manques_db = conn.execute(
     """SELECT id, date, nom, prenom, type_manque, duree
@@ -603,7 +630,7 @@ with tab_prod:
                         tickets_opts = [t[0] for t in tickets_db]
                         sel_ticket = (
                             st.selectbox(
-                                "Ticket",
+                                "Billet / Ticket",
                                 tickets_opts,
                                 key=f"prod_ticket_{cat_key}",
                             )
