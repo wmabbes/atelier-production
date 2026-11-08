@@ -29,19 +29,19 @@ elif page == "Contrôle qualité":
             ["—", *worker_names]
         )
 
-        c1, c2, c3 = st.columns(3)
+        col1, col2, col3 = st.columns(3)
 
-        categorie = c1.selectbox(
+        categorie = col1.selectbox(
             "Catégorie contrôlée", CATEGORIES
         )
 
-        controlees = c2.number_input(
+        controlees = col2.number_input(
             "Quantité contrôlée",
             min_value=1,
             value=1
         )
 
-        defectueuses = c3.number_input(
+        defectueuses = col3.number_input(
             "Quantité défectueuse",
             min_value=0,
             value=0
@@ -96,10 +96,12 @@ elif page == "Contrôle qualité":
     """)
 
     if not df.empty:
-        df["taux_defauts_%"] = (
-            df["quantite_defectueuse"]
-            / df["quantite_controlee"] * 100
-        ).round(1)
+        # Évite la division par zéro si la quantité contrôlée est égale à 0
+        df["taux_defauts_%"] = np.where(
+            df["quantite_controlee"] > 0,
+            (df["quantite_defectueuse"] / df["quantite_controlee"] * 100).round(1),
+            0.0
+        )
 
         st.dataframe(df, use_container_width=True, hide_index=True)
 
