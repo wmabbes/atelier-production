@@ -1,6 +1,8 @@
 # -------------------- QUALITE --------------------
 
-elif page == "Contrôle qualité":
+if page == "Accueil":
+    # ...
+elif page == "Contrôle qualité":  # <--- Votre ligne 3
     st.title("🔎 Contrôle qualité")
 
     workers, worker_names = options(
